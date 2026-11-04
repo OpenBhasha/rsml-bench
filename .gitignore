@@ -11,5 +11,7 @@
 !sync_metadata_from_rsml.py
 !library_server.py
 !publish_hf.py
+!.github/
+!.github/**
 !editor/
 !editor/**
