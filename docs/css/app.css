@@ -1,0 +1,934 @@
+:root {
+  --ink: #1c1b22;
+  --muted: #6b6875;
+  --line: #e4e1ea;
+  --paper: #f7f6fa;
+  --card: #ffffff;
+  --accent: #5b3cc4;
+  --accent-soft: #efeaff;
+  --accent-ink: #3a2597;
+  --ok: #1f9d64;
+  --warn: #b26a00;
+  --err: #d23c3c;
+  --radius: 12px;
+  --mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  --rsml-font-size: 16px; /* set inline by editor.js's A-/A+ toolbar control */
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; } /* id-selector display rules below must not resurrect hidden screens */
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+h1, h2, h3 { font-weight: 650; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+.flex-spacer { flex: 1; }
+kbd {
+  background: #eee;
+  border: 1px solid #ccc;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: #333;
+}
+
+/* -------------------------------------------------------------- header -- */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px; /* the brand (name + version) and the save indicator never touch on a narrow window */
+  padding: 10px 20px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand > .bi { font-size: 26px; color: var(--accent); }
+.brand strong { font-size: 17px; letter-spacing: 0.01em; }
+.brand .tagline { font-size: 12px; color: var(--muted); margin-top: 2px; }
+/* The BhashaCheck version, beside the name (filled in by main.js from version.js). */
+.brand .app-version {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  vertical-align: 1px;
+}
+
+.header-right { display: flex; align-items: center; gap: 12px; }
+.library-nav { display: flex; align-items: center; gap: 6px; }
+.save-indicator { font-size: 13px; color: var(--muted); }
+.save-indicator.saved { color: var(--ok); }
+.save-indicator.dirty { color: var(--warn); }
+.save-indicator.error { color: var(--err); }
+.icon-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-btn:hover { background: var(--accent-soft); color: var(--accent-ink); }
+
+main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+main > section { flex: 1; min-height: 0; }
+
+/* -------------------------------------------------------------- upload -- */
+#screen-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+.upload-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 34px;
+  max-width: 520px;
+  width: 100%;
+  text-align: center;
+}
+.dropzone {
+  margin-top: 22px;
+  border: 2px dashed #c9c3da;
+  border-radius: var(--radius);
+  padding: 40px 18px;
+  cursor: pointer;
+  transition: 0.15s;
+  background: #fbfaff;
+}
+.dropzone:hover, .dropzone.dragover { border-color: var(--accent); background: var(--accent-soft); }
+.dropzone .bi { font-size: 34px; color: var(--accent); }
+.dz-title { font-weight: 600; margin-top: 8px; }
+.dz-sub { font-size: 13px; color: var(--muted); }
+
+/* --------------------------------------------------------------- setup -- */
+.screen-inner { max-width: 520px; margin: 0 auto; padding: 26px 20px 60px; }
+.screen-head h2 { font-size: 20px; margin: 6px 0 4px; }
+.screen-head .btn-link { padding: 0; text-decoration: none; }
+.setup-skip {
+  margin-top: 20px;
+  text-align: center;
+}
+.setup-skip p { margin: 8px 0 0; }
+
+/* ------------------------------------------------------------- editor -- */
+#screen-editor { display: flex; flex-direction: column; min-height: 0; position: relative; }
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 16px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.editor-toolbar .btn-link { padding: 0; text-decoration: none; }
+.seg-count { font-size: 13px; color: var(--muted); }
+.verify-toggle {
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  cursor: pointer;
+}
+.verify-toggle input { width: 15px; height: 15px; }
+/* Flagged-segment count; clicking it toggles "show only flagged segments"
+   (editor.js's setFlaggedOnly). Pressed = the filter is on. Its padding is
+   cancelled by a matching negative margin so the text lines up with the
+   toolbar's other counters while the pressed pill still has room to breathe. */
+.flagged-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  margin: 0 -6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: default;
+}
+.flagged-btn.has-flagged { color: var(--warn); font-weight: 600; cursor: pointer; }
+.flagged-btn.has-flagged:hover { border-color: var(--warn); }
+.flagged-btn[aria-pressed="true"] {
+  color: var(--warn);
+  font-weight: 600;
+  cursor: pointer;
+  background: #fff3df;
+  border-color: var(--warn);
+}
+/* The filter itself: hide every row that isn't flagged, and the add-segment /
+   merge-with-next controls between rows (they would act across hidden
+   neighbours). Flagging or unflagging a row toggles its .flagged class, so the
+   list reacts with no re-render. */
+.seg-list.flagged-only .seg-row:not(.flagged),
+.seg-list.flagged-only .seg-gap { display: none; }
+
+/* Total RSML errors and warnings across every segment; with any, each is a
+   button that jumps to the first of its kind (editor.js's goToFirstIssue).
+   Errors read green at zero (all clear); warnings read muted at zero, since
+   they are advisory. */
+.rsml-errors-btn,
+.rsml-warnings-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 13px;
+  cursor: default;
+}
+.rsml-errors-btn { color: var(--ok); }
+.rsml-warnings-btn { color: var(--muted); }
+.rsml-errors-btn.has-errors { color: var(--err); font-weight: 600; cursor: pointer; }
+.rsml-warnings-btn.has-warnings { color: var(--warn); font-weight: 600; cursor: pointer; }
+.rsml-errors-btn.has-errors:hover span,
+.rsml-warnings-btn.has-warnings:hover span { text-decoration: underline; }
+/* Bootstrap's .form-check is a block with padding-left offset for the
+   input, sized for a stacked list of options - flexed and re-centered here
+   to sit inline with the toolbar's other controls, same look rsml's own
+   per-segment switch had before it moved here. */
+.rsml-display-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding-left: 0;
+  min-height: 0;
+}
+.rsml-display-switch .form-check-input { margin: 0; cursor: pointer; }
+.rsml-display-switch .form-check-label {
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+/* "Normalized" / "Verbatim" swap in and out of the same label on every
+   toggle - fixed to the wider word's width so that swap can't nudge the
+   switch itself, or anything to its right in the toolbar row, sideways. */
+#rsml-mode-toggle-label { display: inline-block; min-width: 6.5em; }
+.font-size-ctl { display: flex; align-items: center; gap: 1px; }
+.font-size-ctl button {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.font-size-ctl button:not(:last-child) { border-right: none; }
+.font-size-ctl button:first-child { border-radius: 6px 0 0 6px; }
+.font-size-ctl button:last-child { border-radius: 0 6px 6px 0; }
+.font-size-ctl button:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+.font-size-ctl button:disabled { color: var(--line); cursor: not-allowed; }
+
+.editor-empty { text-align: center; color: var(--muted); padding: 30px 20px; margin: 0; }
+
+/* --- segment list --- */
+.seg-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+/* Sits between two segment cards (a flex sibling of .seg-row in #seg-list,
+   not an overlay on either one) - adds a new segment right after the card
+   above it, or merges it with the one below (hidden on the leading gap
+   before the first segment - see buildLeadingGap() - and disabled on the
+   last segment's own gap, since there's nothing after it to merge into).
+   Height is fixed - NOT animated - deliberately: an earlier version
+   animated the gap's own height on hover (14px -> 36px), which reflows
+   every row below it while the transition runs. With a real mouse that
+   moving-target effect could shift a *different* gap (or the segment row
+   itself) under the cursor mid-hover, so a click could land on the wrong
+   pair's button even though the click handler itself was always reading
+   the right segment - the bug was the layout thrashing, not the handler.
+   Buttons now only ever animate opacity/transform (compositor-only, no
+   layout, nothing else on the page moves), inside a gap that's already
+   full height whether or not anything is visible in it. */
+.seg-gap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+}
+.seg-gap-btn,
+.seg-merge-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px dashed #c9c3da;
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.94);
+  pointer-events: none;
+  transition: opacity 0.1s ease, transform 0.1s ease;
+}
+.seg-gap:hover .seg-gap-btn,
+.seg-gap:hover .seg-merge-btn {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+.seg-gap-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.seg-merge-btn:hover { border-color: var(--warn); color: var(--warn); background: #fdf3e3; }
+.seg-merge-btn:disabled { opacity: 0.35 !important; cursor: not-allowed; pointer-events: none; }
+.seg-row {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  flex: 0 0 auto; /* never let the flex column squash rows (this was the "segments not loading" bug) */
+}
+.seg-row.verified { border-color: #bfe6cf; }
+.seg-row.verified .seg-bar { background: #f2fbf5; }
+.seg-row.flagged { border-color: var(--warn); }
+.seg-row.flagged .seg-bar { background: #fdf3e3; }
+.seg-flag .bi-flag-fill { color: var(--warn); }
+
+/* The active segment (clicked anywhere in it, its region clicked, or playback
+   is inside it). Highlight reads across the bar, transcription and preview. */
+.seg-row.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.seg-row.is-active .seg-bar { background: var(--accent-soft); }
+.seg-row.is-active .seg-panes { background: #f7f4ff; }
+.seg-row.is-active .pane-label { background: #efeaff; color: var(--accent-ink); }
+.seg-row.is-active .rsml-output,
+.seg-row.is-active .rsml-plain { background: #fbfaff; }
+.seg-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fcfbff;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.seg-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--ok); }
+.seg-verified-label { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ok); }
+.seg-idx {
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.seg-speaker {
+  font-size: 12.5px;
+  padding: 3px 6px;
+  height: 28px;
+  max-width: 160px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.seg-dur { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+.time-group {
+  display: inline-flex;
+  align-items: center;
+  background: #2c2838;
+  color: #fff;
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.time-group span { opacity: 0.6; padding: 0 1px; }
+.time-group input {
+  width: 2.2ch;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  text-align: center;
+  padding: 0;
+  -moz-appearance: textfield;
+}
+.time-group input.ms { width: 3ch; }
+.time-group input::-webkit-outer-spin-button,
+.time-group input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.time-group input:focus { outline: none; background: rgba(255, 255, 255, 0.14); border-radius: 3px; }
+.time-sep { color: var(--muted); }
+
+.seg-panes { display: grid; grid-template-columns: 1fr 1fr; align-items: stretch; position: relative; }
+.seg-pane { display: flex; flex-direction: column; min-width: 0; }
+.seg-pane + .seg-pane { border-left: 1px solid var(--line); }
+.pane-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 6px 12px;
+  background: #fcfbff;
+  border-bottom: 1px solid var(--line);
+}
+/* By default each pane hugs its own content (min-height only) - the grid's
+   default stretch then pulls the shorter pane up to match the taller one, so
+   their bottom edges line up for the shared puller below. Dragging
+   .panes-resize sets --panes-h, which pins both to one explicit height
+   instead (flex-basis: the height property, so this slots into the same
+   flex-grow-to-fill mechanism the default case already uses). */
+.rsml-host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: var(--panes-h, auto);
+  min-height: 96px;
+}
+.rsml-textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  border: none;
+  resize: none;
+  padding: 12px;
+  font-family: var(--mono);
+  font-size: var(--rsml-font-size);
+  line-height: 1.7;
+  outline: none;
+  color: var(--ink);
+}
+/* CM6's own .cm-editor sets height:100% (rsml's injected base CSS) - fine
+   when it's the only child of .rsml-host, but once the library also mounts
+   its status bar as a sibling after it (see patchStatusAlwaysVisible() in
+   editor.js - it's kept visible at all times now, not just on error), 100%
+   would overflow a fixed --panes-h. flex:1 1 auto instead lets it fill
+   whatever space the status bar doesn't need. */
+.rsml-host .cm-editor { height: auto; flex: 1 1 auto; min-height: 0; }
+.rsml-host .rsml-editor-status { flex: 0 0 auto; }
+.rsml-editor-status .rsml-status-ok { color: var(--ok); font-weight: 600; }
+/* rsml bakes the CM6 editor's font-size in once at mount time (it reads
+   getComputedStyle(textarea).fontSize into a fixed EditorView.theme() value
+   — see the library's own activate() source), so a plain inheritable
+   font-size on an ancestor only takes effect for rows mounted *after* it
+   changes (a reload remounts every row, which is why that alone looked
+   like it worked). !important forces every already-open row's .cm-content
+   to track --rsml-font-size live too, on every A-/A+ click, not just after
+   a reload.
+   CM6's base theme also pads .cm-content by only 4px and leaves line-height
+   at the browser default, vs. this app's own 12px/1.7 on .rsml-textarea,
+   .rsml-plain and .rsml-output - left uncorrected, a segment's transcription
+   text starts and spaces its lines differently than its own preview beside
+   it. Matching both here (same !important, same reason) keeps the two
+   columns aligned line for line. */
+.rsml-host .cm-content { font-size: var(--rsml-font-size) !important; padding-top: 12px !important; line-height: 1.7 !important; }
+.rsml-output {
+  flex: 1 1 auto;
+  height: var(--panes-h, auto);
+  min-height: 96px;
+  padding: 12px;
+  line-height: 1.7;
+  overflow-y: auto;
+}
+/* Scoped to .rsml-content (the actual rendered text), not the whole
+   .rsml-output container. */
+.rsml-output .rsml-content { font-size: var(--rsml-font-size); }
+/* Gap in rsml's own core CSS: its _transformRSML() wraps the single
+   whitespace character right after a hidden-when-disfluencies-hidden
+   token (a disfluency span or an isolated hesitation/@other tag) in its
+   own <span class="rsml-trailing-ws">, apparently meant to disappear
+   alongside it — the library ships the JS to emit that wrapper but never
+   added a rule to actually hide it. Left alone, hiding "@filler-start
+   मतलब @filler-end" (say) removes the word but leaves both its own
+   wrapper's edges AND this trailing space, reading as a double space
+   where the word used to be. Added here since rsml's own injected
+   stylesheet has no such rule to override — check again next time the
+   `rsml` version bumps in case it's fixed upstream and this becomes
+   redundant. */
+.rsml-content.rsml-hide-disfluencies .rsml-trailing-ws { display: none; }
+/* rsml's own per-row toolbar (Normalized/Verbatim switch + "hide
+   disfluencies" gear popup, injected as .rsml-output's first child) is
+   hidden outright — the editor toolbar's own controls
+   (#rsml-mode-toggle / #rsml-hide-disfluencies-toggle, wired in editor.js's
+   wireRsmlDisplay()) apply to every segment at once instead of each one
+   defaulting/toggling independently. !important: rsml injects its own
+   stylesheet (display:flex on .rsml-toolbar) after this one loads, at equal
+   specificity. */
+.rsml-output .rsml-toolbar { display: none !important; }
+.rsml-plain {
+  height: 100%;
+  padding: 12px;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: var(--rsml-font-size);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  cursor: text;
+  color: var(--ink);
+}
+.rsml-plain.is-empty { color: var(--muted); font-style: italic; font-family: inherit; }
+
+/* One puller, centered on the shared border at the bottom of the pane pair,
+   drags --panes-h to resize the editor and preview together. */
+.panes-resize {
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  transform: translateX(-50%);
+  width: 44px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--card);
+  cursor: ns-resize;
+  touch-action: none;
+  z-index: 3;
+}
+.panes-resize::before {
+  content: "";
+  width: 26px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.panes-resize:hover,
+.panes-resize.dragging {
+  border-color: var(--accent);
+}
+.panes-resize:hover::before,
+.panes-resize.dragging::before {
+  background: var(--accent);
+}
+
+/* --- bottom: waveform + foot --- */
+.editor-bottom { border-top: 1px solid var(--line); background: var(--card); }
+.waveform-note { padding: 10px 16px; font-size: 13px; color: var(--muted); }
+.waveform-panel { padding: 8px 14px 10px; }
+.wf-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.wf-clock { font-family: var(--mono); font-size: 13px; color: var(--muted); white-space: nowrap; }
+.wf-inline { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.wf-inline .form-select { width: auto; }
+.wf-inline .form-range { width: 150px; }
+#wf-loop.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* Dedicated strip for moving the playhead. Sits above the waveform so a drag
+   here scrubs playback and never touches segment regions. */
+.wf-scrub {
+  position: relative;
+  height: 20px;
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: repeating-linear-gradient(90deg, #f3eefc, #f3eefc 1px, transparent 1px, transparent 40px);
+  cursor: ew-resize;
+  touch-action: none;
+}
+.wf-scrub::before {
+  content: "drag to move playhead";
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  pointer-events: none;
+}
+.wf-scrub-head {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  background: var(--accent);
+  left: 0;
+  pointer-events: none;
+}
+.wf-scrub-marks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.wf-scrub-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(31, 157, 100, 0.35);
+  pointer-events: none;
+}
+.wf-scrub-mark-flagged { background: rgba(178, 106, 0, 0.35); }
+.waveform {
+  background: #fff7f3;
+  border: 1px solid var(--line);
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+}
+.waveform .region-active { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* The label inside each segment's region: segment number + primary speaker
+   (waveform.js / editor.js's regionLabel). WaveSurfer draws regions inside a
+   shadow root, so this reaches the region's content through the part name it
+   exposes. Clipped to the region's own width so a short segment cuts its
+   label with an ellipsis instead of spilling over its neighbour. */
+.waveform > div::part(region-content) {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.editor-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--line);
+}
+
+/* ------------------------------------------------------ settings drawer -- */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 18, 30, 0.35);
+  z-index: 80;
+}
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 380px;
+  max-width: 90vw;
+  background: var(--card);
+  border-left: 1px solid var(--line);
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.12);
+  z-index: 81;
+  display: flex;
+  flex-direction: column;
+}
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.drawer-body { padding: 8px 16px 20px; overflow-y: auto; }
+.drawer-body section { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.drawer-body section:last-child { border-bottom: none; }
+.drawer-body h4 {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+
+/* --------------------------------------------------------------------
+   shortcuts modal (centered, distinct from the side-sliding drawer above) */
+.shortcuts-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 420px;
+  max-width: 90vw;
+  max-height: 80vh;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  z-index: 85;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.shortcuts-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.shortcuts-modal-body { padding: 12px 16px 18px; overflow-y: auto; }
+.shortcuts { margin: 0; font-size: 13px; }
+.shortcuts dt { margin-bottom: 2px; }
+.shortcuts dd { margin: 0 0 10px; color: var(--muted); }
+
+/* RSML tag config editors (drawer -> RSML tags) */
+.rsml-cat {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: var(--paper);
+}
+.rsml-cat + .rsml-cat { margin-top: 0; }
+.rsml-cat summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  list-style: none;
+}
+.rsml-cat summary::-webkit-details-marker { display: none; }
+.rsml-cat summary::before {
+  content: "\25B8";
+  display: inline-block;
+  margin-right: 6px;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+.rsml-cat[open] summary::before { transform: rotate(90deg); }
+.rsml-cat-count {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 12px;
+}
+.rsml-cat-hint { margin: 6px 0 8px; }
+.rsml-cat-empty { display: block; margin: 4px 0; }
+.rsml-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.rsml-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border: 1px solid var(--accent-soft);
+  border-radius: 999px;
+  padding: 2px 4px 2px 10px;
+  font-size: 13px;
+  font-family: var(--mono);
+}
+.rsml-chip button {
+  border: none;
+  background: none;
+  color: inherit;
+  opacity: 0.6;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+.rsml-chip button:hover { opacity: 1; }
+.rsml-add-row { display: flex; gap: 6px; margin-bottom: 6px; }
+.rsml-add-row input { flex: 1; min-width: 0; }
+.rsml-add-row-map .rsml-add-code { flex: 0 0 30%; }
+.rsml-add-row-map .rsml-add-label { flex: 1; }
+.rsml-map-rows { margin-bottom: 8px; }
+.rsml-map-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px dotted var(--line);
+  font-size: 13px;
+}
+.rsml-map-row:last-child { border-bottom: none; }
+.rsml-map-code {
+  flex: 0 0 auto;
+  min-width: 44px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-ink);
+}
+.rsml-map-label { flex: 1; color: var(--ink); }
+.rsml-map-row button {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+.rsml-map-row button:hover { color: var(--err); }
+.rsml-reset { padding: 0; font-size: 13px; }
+
+/* Speaker roster (drawer -> Speakers) */
+.spk-rows { margin-bottom: 8px; }
+.spk-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 0;
+  border-bottom: 1px dotted var(--line);
+  font-size: 13px;
+}
+.spk-row:last-child { border-bottom: none; }
+.spk-row-label { color: var(--ink); }
+.spk-default-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 2px;
+}
+.spk-fill,
+.spk-edit,
+.spk-remove {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 5px;
+  cursor: pointer;
+}
+.spk-edit { font-size: 13px; }
+.spk-fill:hover { color: var(--accent-ink); }
+.spk-edit:hover { color: var(--accent-ink); }
+.spk-remove:hover { color: var(--err); }
+.spk-remove:disabled { color: var(--line); cursor: not-allowed; }
+
+/* Add-speaker modal (reuses .shortcuts-modal chrome) */
+.speaker-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px 16px;
+  border-top: 1px solid var(--line);
+}
+
+/* Insights popup (drawer -> Insights). Reuses .shortcuts-modal chrome and
+   .rsml-cat/.rsml-map-code/.rsml-map-label from the RSML tags config above
+   for the same collapsible-category, code+label look, just wider (room for
+   the frequency bar) and read-only. */
+.insights-modal { width: 520px; }
+.insight-summary { margin: 0 0 10px; }
+.insight-cat { margin-bottom: 8px; }
+.insight-rows { margin-top: 4px; }
+.insight-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px dotted var(--line);
+  font-size: 13px;
+}
+.insight-row:last-child { border-bottom: none; }
+.insight-row-name {
+  flex: 0 0 auto;
+  max-width: 46%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.insight-bar-track {
+  flex: 1;
+  min-width: 40px;
+  height: 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.insight-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+.insight-row-count {
+  flex: 0 0 auto;
+  min-width: 24px;
+  text-align: right;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--accent-ink);
+}
+
+/* select2 (language selects only - #default-codemix-lang and
+   #speaker-modal-lang). The library's own theme font size doesn't pick up
+   this app's own scale, especially the dropdown popup, which mounts
+   straight onto <body> outside any of our own scoping. Checked
+   select2-bootstrap-5-theme's actual CSS: .select2-results__option's real
+   rule is 4 classes deep (.select2-container--bootstrap-5 .select2-dropdown
+   .select2-results__options .select2-results__option { font-size: 1rem }),
+   so nothing short of matching that depth or !important actually beats it
+   - went with !important, same as .cm-content above. */
+.select2-container--bootstrap-5 .select2-selection__rendered,
+.select2-dropdown,
+.select2-dropdown .select2-results__option,
+.select2-dropdown .select2-search__field {
+  font-size: 13px !important;
+}
+
+/* -------------------------------------------------------------- toasts -- */
+.toast-area {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 90;
+  max-width: 360px;
+}
+.app-toast {
+  background: var(--ink);
+  color: #fff;
+  border-radius: 9px;
+  padding: 10px 12px;
+  font-size: 13px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+.app-toast button { background: none; border: none; color: inherit; font-size: 16px; line-height: 1; cursor: pointer; opacity: 0.7; }
+.toast-success { background: #14663f; }
+.toast-error { background: #8f2020; }
+.toast-warn { background: #7a4a00; }
+
+@media (max-width: 720px) {
+  .seg-panes { grid-template-columns: 1fr; }
+  .seg-pane + .seg-pane { border-left: none; border-top: 1px solid var(--line); }
+}

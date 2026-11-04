@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BhashaCheck - RSML Transcription Workbench</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/css/select2.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <script src="config.js"></script>
+    <script>
+      // The deployed site's front page is the library. The upload screen is for local use only.
+      if (!new URLSearchParams(location.search).get("id") && !["localhost", "127.0.0.1"].includes(location.hostname)) {
+        location.replace("library.html");
+      }
+    </script>
+  </head>
+  <body data-screen="upload">
+    <header class="app-header">
+      <div class="brand">
+        <i class="bi bi-soundwave"></i>
+        <div>
+          <strong>BhashaCheck Lite</strong><span id="app-version" class="app-version"></span>
+          <div class="tagline">Rich Transcription Editor</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <!-- library mode only (index.html?id=<video id>, see js/library.js) -->
+        <span id="library-nav" class="library-nav" hidden>
+          <a id="library-link" class="btn btn-sm btn-outline-secondary" href="library.html" title="All videos"><i class="bi bi-collection"></i> Library</a>
+          <a id="library-prev" class="btn btn-sm btn-outline-secondary" title="Previous video" aria-label="Previous video"><i class="bi bi-chevron-left"></i></a>
+          <a id="library-next" class="btn btn-sm btn-outline-secondary" title="Next video" aria-label="Next video"><i class="bi bi-chevron-right"></i></a>
+          <a id="library-youtube" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener noreferrer" title="Open this video on YouTube" hidden><i class="bi bi-youtube"></i> YouTube</a>
+        </span>
+        <span id="save-indicator" class="save-indicator"></span>
+        <button id="open-settings" class="icon-btn" title="Settings" aria-label="Settings">
+          <i class="bi bi-gear"></i>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <!-- ============================ UPLOAD ============================ -->
+      <section id="screen-upload">
+        <div class="upload-card">
+          <div id="dropzone" class="dropzone">
+            <i class="bi bi-cloud-arrow-up"></i>
+            <div class="dz-title">Drop an audio file here, or click to choose</div>
+            <div class="dz-sub">wav, mp3, m4a, flac, ogg</div>
+          </div>
+
+          <input type="file" id="audio-input" accept="audio/*,.wav,.mp3,.m4a,.flac,.ogg,.opus,.webm" hidden />
+          <input type="file" id="srt-input" accept=".rsml,.srt,text/plain" hidden />
+        </div>
+      </section>
+
+      <!-- ============================ SETUP ============================ -->
+      <section id="screen-setup" hidden>
+        <div class="screen-inner">
+          <div class="screen-head">
+            <button id="setup-back-btn" class="btn btn-sm btn-link"><i class="bi bi-arrow-left"></i> Upload</button>
+            <h2>Upload RSML or SRT</h2>
+          </div>
+
+          <div id="srt-dropzone" class="dropzone">
+            <i class="bi bi-filetype-txt"></i>
+            <div class="dz-title">Drop an RSML or SRT file here, or click to choose</div>
+          </div>
+
+          <div class="setup-skip">
+            <button id="setup-skip-btn" class="btn btn-outline-secondary">Skip</button>
+            <p class="muted small">Skip and continue manually with automatic segmentation.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ EDITOR ============================ -->
+      <section id="screen-editor" hidden>
+        <div class="editor-toolbar">
+          <span class="seg-count"><span id="seg-count-n">0</span> segments</span>
+          <label class="verify-toggle">
+            <input type="checkbox" id="verify-all" />
+            <span><span id="verify-count">0 / 0</span> verified</span>
+          </label>
+          <button type="button" id="flagged-btn" class="flagged-btn" aria-pressed="false">
+            <i class="bi bi-flag"></i>
+            <span id="flagged-label">0 flagged</span>
+          </button>
+          <button type="button" id="rsml-errors-btn" class="rsml-errors-btn" hidden>
+            <i class="bi bi-check-circle-fill"></i>
+            <span id="rsml-errors-label">0 RSML errors</span>
+          </button>
+          <button type="button" id="rsml-warnings-btn" class="rsml-warnings-btn" hidden>
+            <i class="bi bi-exclamation-triangle"></i>
+            <span id="rsml-warnings-label">0 RSML warnings</span>
+          </button>
+          <span class="flex-spacer"></span>
+          <div class="form-check form-switch rsml-display-switch" title="Toggle the RSML preview between normalized and verbatim text, for every segment">
+            <input class="form-check-input" type="checkbox" role="switch" id="rsml-mode-toggle" checked />
+            <label class="form-check-label" for="rsml-mode-toggle" id="rsml-mode-toggle-label">Normalized</label>
+          </div>
+          <div class="form-check form-switch rsml-display-switch" title="Hide disfluency spans (fillers, repetitions, etc.) in the RSML preview, for every segment">
+            <input class="form-check-input" type="checkbox" role="switch" id="rsml-hide-disfluencies-toggle" checked />
+            <label class="form-check-label" for="rsml-hide-disfluencies-toggle">Hide disfluencies</label>
+          </div>
+          <div class="font-size-ctl" title="Segment text size">
+            <button type="button" id="font-size-dec" aria-label="Decrease text size">A-</button>
+            <button type="button" id="font-size-reset" aria-label="Reset text size to default">A</button>
+            <button type="button" id="font-size-inc" aria-label="Increase text size">A+</button>
+          </div>
+          <button id="jump-latest-btn" class="btn btn-sm btn-outline-secondary" title="Go to the segment after the last one you verified">
+            <i class="bi bi-skip-end"></i> Jump to latest
+          </button>
+        </div>
+
+        <p id="editor-empty" class="editor-empty" hidden>
+          No segments yet. Drag on the waveform below to create one.
+        </p>
+        <p id="flagged-empty" class="editor-empty" hidden>
+          No flagged segments. Click the flagged count in the toolbar to show every segment again.
+        </p>
+
+        <div id="seg-list" class="seg-list"></div>
+
+        <div class="editor-bottom">
+          <div id="waveform-note" class="waveform-note" hidden>
+            No audio loaded. Editing and export still work.
+          </div>
+          <div id="waveform-panel" class="waveform-panel" hidden>
+            <div id="wf-controls" class="wf-controls">
+              <button id="wf-play" class="btn btn-sm btn-primary"><i class="bi bi-play-fill"></i></button>
+              <button id="wf-stop" class="btn btn-sm btn-outline-secondary"><i class="bi bi-stop-fill"></i></button>
+              <span id="wf-clock" class="wf-clock" title="Current time / total audio duration">00:00</span>
+              <button id="wf-loop" class="btn btn-sm btn-outline-secondary" title="Loop selected segment"><i class="bi bi-repeat"></i></button>
+              <button id="wf-split" class="btn btn-sm btn-outline-secondary" title="Split the segment under the playhead into two, right at the playhead">
+                <i class="bi bi-scissors"></i> Split at Playhead
+              </button>
+              <label class="wf-inline">Speed
+                <select id="set-speed" class="form-select form-select-sm">
+                  <option value="0.5">0.5x</option><option value="0.75">0.75x</option>
+                  <option value="1" selected>1x</option><option value="1.25">1.25x</option>
+                  <option value="1.5">1.5x</option><option value="2">2x</option>
+                </select>
+              </label>
+              <label class="wf-inline">Scale
+                <input id="wf-zoom" type="range" min="10" max="300" value="40" class="form-range" />
+              </label>
+            </div>
+            <div id="wf-scrub" class="wf-scrub" title="Drag anywhere here to move the playhead">
+              <div id="wf-scrub-head" class="wf-scrub-head"></div>
+            </div>
+            <div id="waveform" class="waveform"></div>
+          </div>
+
+          <div class="editor-foot">
+            <button id="shortcuts-btn" class="btn btn-sm btn-outline-secondary" title="Keyboard shortcuts (Ctrl+/)">
+              <i class="bi bi-keyboard"></i> Shortcuts
+            </button>
+            <span class="flex-spacer"></span>
+            <div class="dropdown">
+              <button id="export-toggle-btn" class="btn btn-sm btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-download"></i> Export
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><button type="button" class="dropdown-item" id="export-rsml-btn">RSML (.rsml)</button></li>
+                <li><button type="button" class="dropdown-item" id="export-srt-btn">SRT (.srt)</button></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="settings-backdrop" class="drawer-backdrop" hidden></div>
+    <aside id="settings-drawer" class="drawer" hidden aria-label="Settings">
+      <div class="drawer-head">
+        <strong>Settings</strong>
+        <button id="close-settings" class="icon-btn" aria-label="Close settings"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="drawer-body">
+        <section>
+          <h4>RSML tags</h4>
+          <p class="muted small">
+            The tag vocabulary the RSML editor autocompletes and validates against. Changes apply to
+            this project and take effect immediately in any open segment.
+          </p>
+          <div id="rsml-tags-panel"></div>
+        </section>
+        <section>
+          <h4>Languages</h4>
+          <div id="language-defaults-panel"></div>
+        </section>
+        <section>
+          <h4>Speakers</h4>
+          <div id="speaker-roster-panel"></div>
+        </section>
+        <section>
+          <h4>Insights</h4>
+          <p class="muted small">See how often each RSML tag category appears across this project's segments.</p>
+          <button id="open-insights" class="btn btn-sm btn-outline-secondary"><i class="bi bi-bar-chart"></i> View insights</button>
+        </section>
+        <section>
+          <h4>Project</h4>
+          <button id="drawer-startover" class="btn btn-sm btn-outline-danger">Start over</button>
+          <p class="muted small">Deletes this project (segments, audio, progress) from the browser.</p>
+        </section>
+        <section>
+          <h4>About</h4>
+          <p id="about-versions" class="muted small"></p>
+        </section>
+      </div>
+    </aside>
+
+    <div id="shortcuts-backdrop" class="drawer-backdrop" hidden></div>
+    <div id="shortcuts-modal" class="shortcuts-modal" hidden role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+      <div class="shortcuts-modal-head">
+        <strong>Keyboard shortcuts</strong>
+        <button id="close-shortcuts" class="icon-btn" aria-label="Close shortcuts"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="shortcuts-modal-body">
+        <dl class="shortcuts">
+          <dt><kbd>Shift</kbd> + <kbd>Space</kbd></dt>
+          <dd>Play / pause</dd>
+          <dt><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd></dt>
+          <dd>Play active segment from its start</dd>
+          <dt><kbd>Tab</kbd> / <kbd>Shift</kbd> + <kbd>Tab</kbd></dt>
+          <dd>Next / previous segment</dd>
+          <dt><kbd>Shift</kbd> + <kbd>Enter</kbd></dt>
+          <dd>Verify segment, move to next</dd>
+          <dt><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>&gt;</kbd> / <kbd>&lt;</kbd></dt>
+          <dd>Speed up / down</dd>
+          <dt><kbd>Ctrl</kbd> + <kbd>/</kbd></dt>
+          <dd>Toggle this panel</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div id="speaker-modal-backdrop" class="drawer-backdrop" hidden></div>
+    <div id="speaker-modal" class="shortcuts-modal" hidden role="dialog" aria-modal="true" aria-label="Add speaker">
+      <div class="shortcuts-modal-head">
+        <strong class="speaker-modal-title">Add speaker</strong>
+        <button type="button" class="icon-btn speaker-modal-cancel" aria-label="Cancel"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="shortcuts-modal-body speaker-modal-body"></div>
+      <div class="speaker-modal-foot">
+        <button type="button" class="btn btn-sm btn-outline-secondary speaker-modal-cancel">Cancel</button>
+        <button type="button" class="btn btn-sm btn-primary speaker-modal-save">Add speaker</button>
+      </div>
+    </div>
+
+    <div id="flag-modal-backdrop" class="drawer-backdrop" hidden></div>
+    <div id="flag-modal" class="shortcuts-modal" hidden role="dialog" aria-modal="true" aria-label="Flag segment">
+      <div class="shortcuts-modal-head">
+        <strong>Flag segment</strong>
+        <button type="button" class="icon-btn flag-modal-cancel" aria-label="Cancel"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="shortcuts-modal-body speaker-modal-body">
+        <div class="form-check mb-2">
+          <input type="checkbox" class="form-check-input" id="flag-modal-flagged" />
+          <label class="form-check-label" for="flag-modal-flagged">Flag this segment for review</label>
+        </div>
+        <label class="form-label small mb-1" for="flag-modal-note">Note</label>
+        <textarea id="flag-modal-note" class="form-control" rows="4" placeholder="Add a note..."></textarea>
+      </div>
+      <div class="speaker-modal-foot">
+        <button type="button" class="btn btn-sm btn-outline-secondary flag-modal-cancel">Cancel</button>
+        <button type="button" class="btn btn-sm btn-primary flag-modal-save">Save</button>
+      </div>
+    </div>
+
+    <div id="insights-backdrop" class="drawer-backdrop" hidden></div>
+    <div id="insights-modal" class="shortcuts-modal insights-modal" hidden role="dialog" aria-modal="true" aria-label="Insights">
+      <div class="shortcuts-modal-head">
+        <strong>Insights</strong>
+        <button id="close-insights" class="icon-btn" aria-label="Close insights"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div id="insights-modal-body" class="shortcuts-modal-body"></div>
+    </div>
+
+    <div id="toast-area" class="toast-area"></div>
+
+    <!-- MathJax renders $...$ (inline) and $$...$$ (display) in the segment
+         previews. Config first (MathJax reads window.MathJax when it loads), and
+         no automatic page typeset: js/math.js typesets each preview pane itself,
+         right after the rsml library re-renders it. -->
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [["$", "$"]],
+          displayMath: [["$$", "$$"]],
+          processEscapes: true, // \$ is a literal dollar sign
+        },
+        options: {
+          // Plain rendering only. The right-click menu, speech/braille
+          // enrichment (and its web worker) and the keyboard explorer are off:
+          // they put every formula in the Tab order, which would fight this
+          // app's own Tab / Shift+Tab segment navigation, and cost a lot of
+          // extra downloading for a transcript preview. Screen readers still
+          // get each formula as MathML.
+          enableMenu: false,
+          enableEnrichment: false,
+          enableSpeech: false,
+          enableBraille: false,
+          enableExplorer: false,
+          // The menu's saved settings win over the switches above when they
+          // disagree, so say it there too (assistiveMml is what turns the
+          // screen-reader MathML on).
+          menuOptions: {
+            settings: { enrich: false, speech: false, braille: false, inTabOrder: false, assistiveMml: true },
+          },
+        },
+        a11y: { speech: false, braille: false },
+        startup: { typeset: false },
+      };
+    </script>
+    <script
+      id="mathjax-script"
+      async
+      src="https://cdn.jsdelivr.net/npm/mathjax@4.1.3/tex-svg.js"
+      onerror="window.mathJaxFailed = true"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/js/select2.min.js"></script>
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>

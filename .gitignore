@@ -1,0 +1,15 @@
+# Only the files named below are published. Audio, transcripts and working files stay on this
+# computer; the dataset itself lives on the Hugging Face Hub (see publish_hf.py).
+*
+!.gitignore
+!README.md
+!requirements.txt
+!telugu_cc_final.csv
+!find_telugu_cc_videos.py
+!download_audio.py
+!segment_audio.py
+!sync_metadata_from_rsml.py
+!library_server.py
+!publish_hf.py
+!docs/
+!docs/**

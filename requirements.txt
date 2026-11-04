@@ -1,0 +1,9 @@
+# [default] pulls yt-dlp-ejs, which YouTube extraction needs together with a JS runtime
+# (deno, or node/bun on PATH - the script picks one up automatically).
+yt-dlp[default]
+# --verify-audio (Whisper language ID) and --verify-speakers (diarization); both also need ffmpeg on PATH.
+# The two speaker models (~28 MB) are downloaded to ./models on first use.
+faster-whisper
+sherpa-onnx
+# publish_hf.py: uploads the dataset to the Hugging Face Hub (log in first with `hf auth login`).
+huggingface_hub
