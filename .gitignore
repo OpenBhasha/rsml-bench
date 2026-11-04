@@ -13,3 +13,5 @@
 !publish_hf.py
 !editor/
 !editor/**
+!docs/
+!docs/**
