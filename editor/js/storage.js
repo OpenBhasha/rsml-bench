@@ -55,6 +55,16 @@ export async function saveState(obj) {
   return tx(STATE_STORE, "readwrite", (s) => s.put(obj, STATE_KEY));
 }
 
+// Library edits are kept per video so multiple clips can be recovered independently.
+export async function loadLibraryRsml(id) {
+  try { return await tx(STATE_STORE, "readonly", (s) => s.get(`${id}:rsml`)); }
+  catch (err) { console.warn("[storage] loadLibraryRsml failed", err); return undefined; }
+}
+
+export async function saveLibraryRsml(id, text) {
+  return tx(STATE_STORE, "readwrite", (s) => s.put({ text, updatedAt: Date.now() }, `${id}:rsml`));
+}
+
 export async function putAudio(key, blob) {
   return tx(AUDIO_STORE, "readwrite", (s) => s.put(blob, key));
 }
@@ -87,9 +97,7 @@ export async function clearAll() {
   });
 }
 
-// Library mode keeps nothing in the browser (the rsml file on disk is the only copy; see library.js).
-// An earlier version stored one project per video here as '<video id>:project' / '<video id>:audio';
-// this deletes those leftovers. Records without that prefix (the stock single project) are untouched.
+// Remove obsolete per-video project/audio records. RSML recovery records are retained.
 export async function purgeLibraryRecords() {
   const db = await openDB();
   for (const store of [STATE_STORE, AUDIO_STORE]) {

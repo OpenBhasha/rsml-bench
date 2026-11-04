@@ -17,7 +17,7 @@ import { libraryId, fetchAudio, fetchRsml, fetchIndex, saveRsml, hasUnsaved } fr
 
 // Library mode (library.js): index.html?id=<video id> opens that video, with its audio and RSML
 // fetched from the local server and every edit autosaved back into the RSML file. Nothing is kept
-// in the browser (no IndexedDB): the file is the only copy. Without ?id= nothing below changes.
+// in the browser while also syncing to the Hub. Without ?id= nothing below changes.
 const LIB = libraryId();
 const DECODE_OPTS = LIB ? { sampleRate: 16000 } : undefined; // the library's audio is 16 kHz
 
@@ -104,8 +104,20 @@ export async function saveNow({ urgent = false } = {}) {
     rsmlHideDisfluencies: state.ui.rsmlHideDisfluencies,
   });
   if (LIB) {
-    // never write a video that has not loaded yet: that would replace its file with nothing
-    if (state.segments.length) await syncToDisk(urgent);
+    // Keep a local recovery copy on every edit, including when Hub permissions/network fail.
+    if (!state.segments.length) return;
+    const text = buildRSML(state.segments, buildExportConfig(state));
+    try {
+      await storage.saveLibraryRsml(LIB, text);
+      const b = savedBadge();
+      if (b) { b.textContent = "Saved locally"; b.className = "save-indicator saved"; }
+    } catch (err) {
+      console.warn("local recovery save failed", err);
+      const b = savedBadge();
+      if (b) { b.textContent = "Local save failed"; b.className = "save-indicator error"; }
+    }
+    // Hub writes run on the five minute timer or when the user explicitly syncs/leaves.
+    if (urgent) await syncToDisk(true);
     return;
   }
   try {
@@ -135,7 +147,7 @@ function syncToDisk(urgent = false) {
     () => {},
     (err) => {
       ok = false;
-      reason = err.status === 401 ? "NOT SAVED - add a token on the library page" : "NOT SAVED - could not write the file";
+      reason = err.status === 401 ? "LOCAL COPY SAVED - add a token on the library page" : err.status === 403 ? "LOCAL COPY SAVED - token needs write access to OpenBhasha/rsml-bench" : "LOCAL COPY SAVED - Hugging Face sync failed";
       console.warn("disk save failed", err);
       const b = savedBadge();
       if (b) b.title = err.message || "";
@@ -633,16 +645,22 @@ function showVersions() {
   if (about) about.textContent = `BhashaCheck v${BHASHACHECK_VERSION}, using RSML v${RSML_VERSION}.`;
 }
 
-// Library mode, first visit to a video: its audio and generated RSML come from the server and go
-// through the same two steps as an upload (handleAudioFile) and an RSML import (importSrt).
+// Open a library video, preferring its IndexedDB recovery copy when one exists.
 async function openFromLibrary(id) {
   try {
-    const [audio, rsml] = await Promise.all([fetchAudio(id), fetchRsml(id)]);
+    const [audio, remoteRsml] = await Promise.all([fetchAudio(id), fetchRsml(id)]);
+    const localRsml = await storage.loadLibraryRsml(id);
+    const rsml = localRsml?.text || remoteRsml;
     state = newState();
     syncSettingsPanels();
     state.audioMeta = { name: `${id}.wav`, type: audio.type, size: audio.size, duration: 0 };
     await setWorkingAudio(audio);
     await importSrt(new File([rsml], `${id}.rsml`, { type: "text/plain" }));
+    if (localRsml?.text && localRsml.text !== remoteRsml) {
+      toast("Restored the local IndexedDB copy. Use Sync now to update Hugging Face.", "info");
+      const b = savedBadge();
+      if (b) { b.textContent = "Local edits need sync"; b.className = "save-indicator dirty"; }
+    }
   } catch (err) {
     console.warn("library load failed", err);
     // not the upload screen: anything imported there would be autosaved over this video's file
@@ -658,8 +676,17 @@ async function openFromLibrary(id) {
 // the 500 ms save debounce.
 async function wireLibraryNav(id) {
   document.getElementById("library-nav").hidden = false;
-  // "Start over" deletes a browser-stored project; a library video has none, its file is the only copy
+  // "Start over" is for local projects; library clips keep their recovery copy in IndexedDB.
   document.getElementById("drawer-startover").closest("section").hidden = true;
+  const syncButton = document.getElementById("sync-now");
+  syncButton.hidden = false;
+  syncButton.onclick = async () => {
+    syncButton.disabled = true;
+    syncButton.innerHTML = '<i class="bi bi-arrow-repeat"></i> Syncing…';
+    await saveNow({ urgent: true });
+    syncButton.disabled = false;
+    syncButton.innerHTML = '<i class="bi bi-cloud-arrow-up"></i> Sync now';
+  };
   const link = (elId, href) => {
     const a = document.getElementById(elId);
     if (href) a.href = href;
@@ -711,6 +738,8 @@ async function boot() {
       if (document.visibilityState === "hidden" && state.segments.length) saveNow({ urgent: true });
     });
     await openFromLibrary(LIB);
+    // Periodic direct commit to main; manual Sync now and navigation can sync sooner.
+    setInterval(() => { if (state.segments.length) saveNow({ urgent: true }); }, 5 * 60 * 1000);
     return;
   }
   if (had && (state.segments.length || state.audioMeta)) {

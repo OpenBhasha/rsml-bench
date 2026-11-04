@@ -6,7 +6,7 @@ audio and RSML files, and autosaves the annotator's work straight into those RSM
 
 then open http://localhost:8766/library.html. It serves
 
-    /                         docs/                      the app
+    /                         editor/                    the app
     /library/index.json       the videos in telugu_cc_final.csv, in that order (+ progress read from each rsml)
     /library/audio/<id>.wav   data/telugu/<id>.wav
     /library/rsml/<id>.rsml   data/telugu/<id>.rsml
@@ -162,10 +162,10 @@ def main():
     ap.add_argument("--csv", type=Path, default=HERE / "telugu_cc_final.csv", help="the videos to serve")
     ap.add_argument("--audio-dir", type=Path, default=HERE / "data" / "telugu")
     ap.add_argument("--rsml-dir", type=Path, default=HERE / "data" / "telugu", help="the RSML files: served, and overwritten by autosave")
-    ap.add_argument("--web", type=Path, default=HERE / "docs", help="the web app (docs/)")
+    ap.add_argument("--web", type=Path, default=HERE / "editor", help="the web app (editor/)")
     args = ap.parse_args()
     if not (args.web / "index.html").exists():
-        sys.exit(f"{args.web}/index.html not found - the web app should be in docs/")
+        sys.exit(f"{args.web}/index.html not found - the web app should be in editor/")
     Handler.videos = load_videos(args.csv, args.audio_dir, args.rsml_dir)
     Handler.ids = {v["id"] for v in Handler.videos}
     Handler.audio_dir, Handler.rsml_dir = args.audio_dir, args.rsml_dir

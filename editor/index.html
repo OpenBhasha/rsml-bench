@@ -18,7 +18,9 @@
     <script src="config.js"></script>
     <script>
       // The deployed site's front page is the library. The upload screen is for local use only.
-      if (!new URLSearchParams(location.search).get("id") && !["localhost", "127.0.0.1"].includes(location.hostname)) {
+      const libraryVideo = new URLSearchParams(location.search).get("id");
+      if (libraryVideo) document.documentElement.classList.add("library-video");
+      if (!libraryVideo && !["localhost", "127.0.0.1"].includes(location.hostname)) {
         location.replace("library.html");
       }
     </script>
@@ -40,6 +42,7 @@
           <a id="library-next" class="btn btn-sm btn-outline-secondary" title="Next video" aria-label="Next video"><i class="bi bi-chevron-right"></i></a>
           <a id="library-youtube" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener noreferrer" title="Open this video on YouTube" hidden><i class="bi bi-youtube"></i> YouTube</a>
         </span>
+        <button id="sync-now" class="btn btn-sm btn-primary" hidden><i class="bi bi-cloud-arrow-up"></i> Sync now</button>
         <span id="save-indicator" class="save-indicator"></span>
         <button id="open-settings" class="icon-btn" title="Settings" aria-label="Settings">
           <i class="bi bi-gear"></i>

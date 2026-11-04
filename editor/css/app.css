@@ -73,6 +73,9 @@ kbd {
 .save-indicator.saved { color: var(--ok); }
 .save-indicator.dirty { color: var(--warn); }
 .save-indicator.error { color: var(--err); }
+/* Library video URLs open directly into the editor flow; hide the standalone upload paths. */
+.library-video #screen-upload,
+.library-video #screen-setup { display: none !important; }
 .icon-btn {
   border: none;
   background: transparent;
