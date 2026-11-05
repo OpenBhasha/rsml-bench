@@ -73,6 +73,41 @@ kbd {
 .save-indicator.saved { color: var(--ok); }
 .save-indicator.dirty { color: var(--warn); }
 .save-indicator.error { color: var(--err); }
+.library-loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  background: rgb(247 246 250 / 92%);
+}
+html.library-loading .library-loading-overlay { display: flex; }
+.library-loading-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: 0 12px 36px rgb(28 27 34 / 12%);
+  color: var(--ink);
+  font-size: 15px;
+}
+.library-loading-spinner {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: library-loading-spin 0.8s linear infinite;
+}
+@keyframes library-loading-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .library-loading-spinner { animation: none; border-top-color: var(--accent); }
+}
 /* Library video URLs open directly into the editor flow; hide the standalone upload paths. */
 .library-video #screen-upload,
 .library-video #screen-setup { display: none !important; }

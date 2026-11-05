@@ -19,7 +19,10 @@
     <script>
       // The deployed site's front page is the library. The upload screen is for local use only.
       const libraryVideo = new URLSearchParams(location.search).get("id");
-      if (libraryVideo) document.documentElement.classList.add("library-video");
+      if (libraryVideo) {
+        document.documentElement.classList.add("library-video", "library-loading");
+        document.documentElement.setAttribute("aria-busy", "true");
+      }
       if (!libraryVideo && !["localhost", "127.0.0.1"].includes(location.hostname)) {
         location.replace("library.html");
       }
@@ -49,6 +52,13 @@
         </button>
       </div>
     </header>
+
+    <div id="library-loading" class="library-loading-overlay" role="status" aria-live="polite" aria-label="Loading audio and transcript">
+      <div class="library-loading-card">
+        <span class="library-loading-spinner" aria-hidden="true"></span>
+        <span>Loading audio and transcript…</span>
+      </div>
+    </div>
 
     <main>
       <!-- ============================ UPLOAD ============================ -->

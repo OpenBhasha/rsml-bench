@@ -738,6 +738,8 @@ async function boot() {
       if (document.visibilityState === "hidden" && state.segments.length) saveNow({ urgent: true });
     });
     await openFromLibrary(LIB);
+    document.documentElement.classList.remove("library-loading");
+    document.documentElement.setAttribute("aria-busy", "false");
     // Periodic direct commit to main; manual Sync now and navigation can sync sooner.
     setInterval(() => { if (state.segments.length) saveNow({ urgent: true }); }, 5 * 60 * 1000);
     return;
