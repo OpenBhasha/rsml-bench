@@ -71,15 +71,11 @@ export async function fetchRsml(id) {
   return text;
 }
 
-// [{ id, title, channel, url, duration_s, speakers_detected, speaker_share_pct, ..., progress }]
-// Progress is counted from each video's rsml on the Hub, so it is as current as the last commit.
+// [{ id, title, channel, url, duration_s, speakers_detected, speaker_share_pct, ... }]
 export async function fetchIndex() {
   const r = await fetch(`${FILES}/metadata.csv`, { cache: "no-store", headers: authHeaders() });
   if (!r.ok) throw readError("metadata.csv", r);
   const videos = parseCsv(await r.text()).filter((v) => v.id);
-  await Promise.all(videos.map(async (v) => {
-    try { v.progress = progressOf(await fetchRsml(v.id)); } catch { v.progress = null; }
-  }));
   return videos.map((v) => ({
     ...v,
     batch: +v.batch || 0,

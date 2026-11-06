@@ -9,6 +9,7 @@
 // Add ?backend=local or ?backend=hf to the address to choose one by hand.
 
 import * as hf from "./hf.js";
+import { parseSRT } from "./srt.js";
 
 export const libraryId = () => new URLSearchParams(location.search).get("id") || null;
 
@@ -36,11 +37,39 @@ async function localSaveRsml(id, rsmlText) {
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
 }
 
-// [{ id, title, channel, duration_s, speakers_detected, speaker_share_pct, vad_segments, url, ...,
-//    progress: { segments, verified, flagged, mtime } | null }]  (progress: read from the rsml file)
 export const fetchAudio = (id) => (isLocal ? localFetchAudio(id) : hf.fetchAudio(id));
 export const fetchRsml = (id) => (isLocal ? localFetchRsml(id) : hf.fetchRsml(id));
-export const fetchIndex = () => (isLocal ? localFetchIndex() : hf.fetchIndex());
+
+export function transcriptStats(text) {
+  const { cues } = parseSRT(text);
+  const stats = { segments: cues.length, transcribed: 0, verified: 0, flagged: 0, words: 0, verifiedWords: 0 };
+  for (const cue of cues) {
+    // Keep the spoken span, dropping normalized forms and standalone RSML markers.
+    const spoken = cue.text
+      .replace(/(?:!!?|\$\$?|#)[\w-]*(?=\[)/g, "")
+      .replace(/\[([^\]]*)\](?:\([^)]*\))?/g, "$1")
+      .replace(/(^|\s)(?:@|&)\w[\w-]*/g, "$1");
+    const words = spoken.split(/\s+/u).filter((word) => /[\p{L}\p{N}]/u.test(word)).length;
+    stats.words += words;
+    stats.transcribed += Number(words > 0);
+    stats.flagged += Number(Boolean(cue.meta?.flagged));
+    if (cue.meta?.verified) {
+      stats.verified++;
+      stats.verifiedWords += words;
+    }
+  }
+  return stats;
+}
+
+export async function fetchIndex({ withStats = false } = {}) {
+  const videos = await (isLocal ? localFetchIndex() : hf.fetchIndex());
+  if (!withStats) return videos;
+  return Promise.all(videos.map(async (video) => {
+    let progress = null;
+    try { progress = transcriptStats(await fetchRsml(video.id)); } catch { /* transcript unavailable */ }
+    return { ...video, progress };
+  }));
+}
 
 // Resolves once the text is in the library. Rejects (with .status when there is one) if it is not.
 export const saveRsml = (id, rsmlText, opts) => (isLocal ? localSaveRsml(id, rsmlText) : hf.saveRsml(id, rsmlText, opts));

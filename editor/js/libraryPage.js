@@ -24,66 +24,114 @@ function clock(seconds) {
   return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
 }
 
-// nothing verified yet / some verified / every segment verified
-function statusOf(progress) {
-  if (progress && progress.segments && progress.verified === progress.segments) return { key: "done", label: "Done" };
-  if (progress && progress.verified > 0) return { key: "progress", label: "In progress" };
-  return { key: "new", label: "Not started" };
-}
-
-let videos = [];
+const asrDraftIds = new Set(window.RSML_BENCH.asrDraftIds);
+const editorLink = (id) => {
+  const params = new URLSearchParams({ id });
+  const backend = new URLSearchParams(location.search).get("backend");
+  if (backend) params.set("backend", backend);
+  return "index.html?" + params;
+};
 
 function viewOf(v, i) {
   const s = v.progress;
-  const segments = s ? s.segments : v.vad_segments;
-  return { v, i, s, segments, verified: s ? s.verified : 0, status: statusOf(s) };
+  const asr = asrDraftIds.has(v.id) ? "yes" : "unknown";
+  if (!s) return { v, i, s, asr, coverage: "unknown", status: { key: "unknown", label: "Unavailable" } };
+  const coverage = !s.transcribed ? "none" : s.transcribed === s.segments ? "full" : "partial";
+  const status = !s.verified ? { key: "new", label: "Not started" }
+    : s.verified === s.segments ? { key: "done", label: "Done" }
+    : { key: "progress", label: "In progress" };
+  return { v, i, s, asr, coverage, status };
 }
 
-function render() {
-  const q = $("library-search").value.trim().toLowerCase();
-  const hideDone = $("library-hide-done").checked;
-  let rows = videos.map(viewOf);
+const format = (n) => n.toLocaleString();
+const numericCell = (n, label) => el("td", {
+  class: "lib-num", "data-order": n ?? -1, text: label ?? (n == null ? "—" : format(n)),
+});
 
-  const totalSeg = rows.reduce((n, r) => n + r.segments, 0);
-  const totalVer = rows.reduce((n, r) => n + r.verified, 0);
-  const done = rows.filter((r) => r.status.key === "done").length;
-  $("library-summary").replaceChildren(
-    el("strong", { text: `${done} of ${rows.length}` }), " videos done, ",
-    el("strong", { text: totalVer.toLocaleString() }), ` of ${totalSeg.toLocaleString()} segments verified`
-  );
-  const next = rows.find((r) => r.status.key !== "done");
-  const nextBtn = $("open-next");
-  nextBtn.hidden = !next;
-  if (next) nextBtn.href = `index.html?id=${encodeURIComponent(next.v.id)}`;
+function renderRow({ v, i, s, asr, status }) {
+  const fraction = s?.segments ? s.verified / s.segments : 0;
+  const title = el("td", { class: "lib-title", "data-search": v.title + " " + v.id },
+    el("a", { href: editorLink(v.id), text: v.title }));
+  if (/^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(v.url || "")) {
+    title.append(el("a", { class: "lib-yt", href: v.url, target: "_blank", rel: "noopener", "aria-label": "Open on YouTube" },
+      el("i", { class: "bi bi-box-arrow-up-right", "aria-hidden": "true" })));
+  }
+  return el("tr", {},
+    numericCell(i + 1), title, el("td", { text: v.channel }), el("td", { text: v.style || "—" }),
+    numericCell(v.duration_s, clock(v.duration_s)), numericCell(v.speakers_detected),
+    el("td", { text: asr === "yes" ? "IndicConformer" : "Unrecorded" }),
+    numericCell(s?.transcribed, s ? format(s.transcribed) + " / " + format(s.segments) : null),
+    numericCell(s?.words), numericCell(s?.verifiedWords),
+    el("td", { "data-order": s ? fraction : -1 },
+      el("span", { class: "small text-muted", text: s ? format(s.verified) + " / " + format(s.segments) : "—" }),
+      s && el("div", { class: "lib-bar", "aria-hidden": "true" },
+        el("span", { style: "width:" + Math.round(100 * fraction) + "%" }))),
+    numericCell(s?.flagged),
+    el("td", {}, el("span", { class: "lib-status " + status.key, text: status.label })));
+}
 
-  if (q) rows = rows.filter((r) => `${r.v.title} ${r.v.channel} ${r.v.id}`.toLowerCase().includes(q));
-  if (hideDone) rows = rows.filter((r) => r.status.key !== "done");
-  const sort = $("library-sort").value;
-  const frac = (r) => (r.segments ? r.verified / r.segments : 0);
-  if (sort === "duration") rows.sort((a, b) => b.v.duration_s - a.v.duration_s);
-  else if (sort === "speakers") rows.sort((a, b) => b.v.speakers_detected - a.v.speakers_detected || a.i - b.i);
-  else if (sort === "progress") rows.sort((a, b) => frac(a) - frac(b) || a.i - b.i);
+function updateSummary(rows, total) {
+  const count = (predicate) => rows.filter(predicate).length;
+  const sum = (key) => format(rows.reduce((n, r) => n + (r.s?.[key] ?? 0), 0));
+  const missing = count((r) => !r.s);
+  $("library-summary").textContent =
+    format(rows.length) + " of " + format(total) + " tasks · " +
+    format(count((r) => r.asr === "yes")) + " with recorded ASR · " +
+    format(count((r) => r.s?.transcribed > 0)) + " with transcript text · " +
+    sum("words") + " words · " + sum("verifiedWords") + " words in verified cues · " +
+    sum("verified") + " of " + sum("segments") + " cues verified · " +
+    format(count((r) => r.status.key === "done")) + " tasks fully verified" +
+    (missing ? " · " + format(missing) + " unavailable" : "");
+}
 
-  $("library-rows").replaceChildren(
-    ...rows.map((r) => {
-      const { v } = r;
-      const multi = v.speakers_detected > 1;
-      return el("tr", {},
-        el("td", { class: "text-muted", text: String(r.i + 1) }),
-        el("td", { class: "lib-title" },
-          el("a", { href: `index.html?id=${encodeURIComponent(v.id)}`, text: v.title }),
-          el("a", { class: "lib-yt", href: v.url, target: "_blank", rel: "noopener", title: "Open on YouTube" }, el("i", { class: "bi bi-box-arrow-up-right" }))),
-        el("td", { text: v.channel }),
-        el("td", { class: "lib-num", text: clock(v.duration_s) }),
-        el("td", { class: `lib-num lib-speakers${multi ? " multi" : ""}`, title: v.speaker_share_pct ? `share of speech: ${v.speaker_share_pct.replaceAll("|", "  ")} %` : "", text: String(v.speakers_detected) }),
-        el("td", { class: "lib-num", text: String(r.segments) }),
-        el("td", {},
-          el("span", { class: "small text-muted", text: `${r.verified} / ${r.segments}` }),
-          el("div", { class: "lib-bar" }, el("span", { style: `width:${Math.round(100 * frac(r))}%` }))),
-        el("td", {}, el("span", { class: `lib-status ${r.status.key}`, text: r.status.label })));
-    })
-  );
-  $("library-empty").hidden = rows.length > 0;
+function setupTable(videos) {
+  const rows = videos.map(viewOf);
+  const next = rows.find((r) => ["new", "progress"].includes(r.status.key));
+  $("open-next").hidden = !next;
+  if (next) $("open-next").href = editorLink(next.v.id);
+  $("library-rows").replaceChildren(...rows.map(renderRow));
+  updateSummary(rows, rows.length);
+
+  if (!window.DataTable) {
+    $("library-error").textContent = "Table controls could not load. Reload to try again.";
+    $("library-error").hidden = false;
+    return;
+  }
+
+  const styleFilter = $("library-style");
+  for (const style of [...new Set(videos.map((v) => v.style).filter(Boolean))].sort()) {
+    styleFilter.append(el("option", { value: style, text: style }));
+  }
+  const table = new window.DataTable("#library-table", {
+    order: [[0, "asc"]],
+    pageLength: 25,
+    lengthMenu: [10, 25, 50, { label: "All", value: -1 }],
+    scrollX: true,
+    language: { emptyTable: "No videos in this library.", zeroRecords: "No videos match.", searchPlaceholder: "Title, channel or ID" },
+  });
+  const value = (name) => $("library-" + name).value;
+  table.search.fixed("library-filters", (_search, _data, index) => {
+    const { v, s, asr, coverage, status } = rows[index];
+    const speakers = value("speakers");
+    const min = value("min-words"), max = value("max-words");
+    return (!value("asr") || value("asr") === asr) &&
+      (!value("transcript") || value("transcript") === coverage) &&
+      (!value("verification") || value("verification") === status.key) &&
+      (!styleFilter.value || styleFilter.value === v.style) &&
+      (!speakers || (speakers === "single" ? v.speakers_detected === 1 : v.speakers_detected > 1)) &&
+      (!min || (s && s.words >= Number(min))) &&
+      (!max || (s && s.words <= Number(max))) &&
+      (!$("library-flagged").checked || s?.flagged > 0);
+  });
+  table.on("draw", () => {
+    const filtered = table.rows({ search: "applied" }).indexes().toArray();
+    updateSummary(filtered.map((index) => rows[index]), rows.length);
+  });
+  const filters = $("library-filters");
+  filters.addEventListener("input", () => table.draw());
+  filters.addEventListener("submit", (event) => event.preventDefault());
+  filters.addEventListener("reset", () => setTimeout(() => table.search("").draw(), 0));
+  filters.hidden = false;
 }
 
 // Deployed site only: the token that lets autosave commit to the Hub (see hf.js).
@@ -135,8 +183,9 @@ function wireToken() {
 
 async function boot() {
   wireToken();
+  let videos;
   try {
-    videos = await fetchIndex();
+    videos = await fetchIndex({ withStats: true });
   } catch (err) {
     const box = $("library-error");
     const denied = err.status === 401 || err.status === 403;
@@ -151,8 +200,7 @@ async function boot() {
     $("library-summary").textContent = "";
     return;
   }
-  for (const id of ["library-search", "library-sort", "library-hide-done"]) $(id).addEventListener("input", render);
-  render();
+  setupTable(videos);
 }
 
 boot();
