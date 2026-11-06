@@ -115,11 +115,11 @@ function renderOverview(rows) {
   const timedSeconds = timed.reduce((sum, row) => sum + row.seconds, 0);
   const timedVerified = timed.reduce((sum, row) => sum + row.s.verifiedSeconds, 0);
   $("library-stats").replaceChildren(
-    card("Verified raw duration / total", clock(verifiedRaw) + " / " + clock(raw), "blue", "soundwave"),
-    card("Verified segment duration / total", clock(verified) + " / " + clock(segmented), "teal", "bar-chart-steps"),
-    card("Verified words / total", format(sumProgress("verifiedWords")) + " / " + format(sumProgress("words")), "green", "fonts"),
+    card("Raw audio", clock(verifiedRaw) + " / " + clock(raw), "blue", "soundwave"),
+    card("Segment audio", clock(verified) + " / " + clock(segmented), "teal", "bar-chart-steps"),
+    card("Verified words", format(sumProgress("verifiedWords")) + " / " + format(sumProgress("words")), "green", "fonts"),
     card("WER", percent(errors, ref), "rose", "spellcheck"),
-    card("Productivity per active hour", timedSeconds ? clock(3600 * timedVerified / timedSeconds) : "—", "amber", "speedometer2"));
+    card("Productivity", timedSeconds ? clock(3600 * timedVerified / timedSeconds) + " / hr" : "—", "amber", "speedometer2"));
   $("library-overview").hidden = false;
 }
 
@@ -163,11 +163,12 @@ function setupTable(videos, activity) {
   }
   const table = new window.DataTable("#library-table", {
     order: [[0, "asc"]],
-    pageLength: 25,
-    lengthMenu: [10, 25, 50, { label: "All", value: -1 }],
+    pageLength: 5,
+    lengthMenu: [5, 10, 25, 50, { label: "All", value: -1 }],
     scrollX: true,
     language: { emptyTable: "No videos in this library.", zeroRecords: "No videos match.", searchPlaceholder: "Title, channel or ID" },
   });
+  $("library-summary").classList.add("visually-hidden");
   const value = (name) => $("library-" + name).value;
   table.search.fixed("library-filters", (_search, _data, index) => {
     const { v, s, asr, coverage, status } = rows[index];
