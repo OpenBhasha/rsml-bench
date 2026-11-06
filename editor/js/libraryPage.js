@@ -77,10 +77,9 @@ function renderRow({ v, i, s, asr, status, seconds }) {
 }
 
 function renderOverview(rows) {
-  const done = rows.filter((row) => row.status.key === "done");
   const raw = rows.reduce((sum, row) => sum + row.v.duration_s, 0);
-  const doneRaw = done.reduce((sum, row) => sum + row.v.duration_s, 0);
   const sumProgress = (key) => rows.reduce((sum, row) => sum + (row.s?.[key] ?? 0), 0);
+  const verifiedRaw = sumProgress("verifiedRawSeconds");
   const verified = sumProgress("verifiedSeconds");
   const segmented = sumProgress("segmentSeconds");
   const compared = rows.flatMap(({ v }) => v.comparison ? [v.comparison] : []);
@@ -93,7 +92,7 @@ function renderOverview(rows) {
   const card = (label, value, detail) => el("div", { class: "library-stat" },
     el("dt", { text: label }), el("dd", { text: value }, el("small", { text: detail })));
   $("library-stats").replaceChildren(
-    card("Verified raw duration / total raw duration", clock(doneRaw) + " / " + clock(raw), percent(doneRaw, raw) + " · " + done.length + " of " + rows.length + " files complete"),
+    card("Verified raw duration / total raw duration", clock(verifiedRaw) + " / " + clock(raw), percent(verifiedRaw, raw) + " · includes silence in the longest verified run"),
     card("Verified segment duration / total segment duration", clock(verified) + " / " + clock(segmented), percent(verified, segmented) + " · overlaps counted once"),
     card("Verified words / total words", format(sumProgress("verifiedWords")) + " / " + format(sumProgress("words")), "Words in human-verified segments"),
     card("WER", percent(errors, ref), ref ? format(errors) + " edits across " + compared.length + " comparable files" : "No comparable files"),

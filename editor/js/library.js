@@ -79,8 +79,7 @@ function tokens(text) {
   return verbatimText(text).normalize("NFC").toLowerCase().match(/[\p{L}\p{N}][\p{L}\p{M}\p{N}\u200c\u200d]*/gu) || [];
 }
 
-function coveredSeconds(cues, limit) {
-  const sorted = [...cues].sort((a, b) => a.start - b.start);
+function coveredSeconds(sorted, limit) {
   let end = 0, seconds = 0;
   for (const cue of sorted) {
     const next = Math.min(cue.end, limit);
@@ -91,6 +90,23 @@ function coveredSeconds(cues, limit) {
     }
   }
   return seconds;
+}
+
+function longestVerifiedRun(segments, limit) {
+  let longest = null;
+  let run = null;
+  for (const segment of segments) {
+    if (!segment.meta?.verified) {
+      run = null;
+      continue;
+    }
+    const start = Math.max(0, segment.start);
+    const end = Math.min(limit, segment.end);
+    if (end <= start) continue;
+    run = { start: run?.start ?? start, end: Math.max(run?.end ?? end, end) };
+    if (!longest || run.end - run.start > longest.end - longest.start) longest = run;
+  }
+  return longest;
 }
 
 function summarizeCues(cues, duration) {
@@ -106,10 +122,24 @@ function summarizeCues(cues, duration) {
     }
   }
   const limit = duration > 0 ? duration : Infinity;
+  const segments = [...cues].sort((a, b) => a.start - b.start);
+  const verified = segments.filter((segment) => segment.meta?.verified);
+  let verifiedRawSeconds = 0;
+  if (duration > 0 && verified.length) {
+    if (verified.length === segments.length) {
+      verifiedRawSeconds = duration;
+    } else {
+      const run = longestVerifiedRun(segments, limit);
+      // Take the union so segments inside the run are counted only once.
+      const intervals = run ? [...verified, run].sort((a, b) => a.start - b.start) : verified;
+      verifiedRawSeconds = coveredSeconds(intervals, limit);
+    }
+  }
   return {
     ...stats,
-    segmentSeconds: coveredSeconds(cues, limit),
-    verifiedSeconds: coveredSeconds(cues.filter((cue) => cue.meta?.verified), limit),
+    segmentSeconds: coveredSeconds(segments, limit),
+    verifiedSeconds: coveredSeconds(verified, limit),
+    verifiedRawSeconds,
   };
 }
 
