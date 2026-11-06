@@ -155,6 +155,21 @@ export async function fetchIndex({ withStats = false } = {}) {
   }));
 }
 
+export async function fetchActivity() {
+  if (isLocal) return new Map();
+  return hf.fetchActivity();
+}
+
+export function activeSeconds(commits = [], completed = false) {
+  let seconds = 0;
+  for (let i = 1; i < commits.length; i++) {
+    if (completed && commits[i - 1].done) break;
+    const gap = (commits[i].time - commits[i - 1].time) / 1000;
+    if (gap > 0 && gap <= 300) seconds += gap;
+  }
+  return seconds || null;
+}
+
 // Resolves once the text is in the library. Rejects (with .status when there is one) if it is not.
 export const saveRsml = (id, rsmlText, opts) => (isLocal ? localSaveRsml(id, rsmlText) : hf.saveRsml(id, rsmlText, opts));
 export const hasUnsaved = () => (isLocal ? false : hf.hasUnsaved());

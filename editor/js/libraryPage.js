@@ -1,6 +1,6 @@
 // library.html: every video in the library, with progress read from its RSML file.
 
-import { fetchIndex, isLocal, getToken, setToken, whoami, lastActiveId } from "./library.js";
+import { activeSeconds, fetchActivity, fetchIndex, isLocal, getToken, setToken, whoami, lastActiveId } from "./library.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -49,7 +49,7 @@ const numericCell = (n, label) => el("td", {
   class: "lib-num", "data-order": n ?? -1, text: label ?? (n == null ? "—" : format(n)),
 });
 
-function renderRow({ v, i, s, asr, status }) {
+function renderRow({ v, i, s, asr, status, seconds }) {
   const fraction = s?.segments ? s.verified / s.segments : 0;
   const comparison = v.comparison;
   const title = el("td", { class: "lib-title", "data-search": v.title + " " + v.id },
@@ -72,7 +72,8 @@ function renderRow({ v, i, s, asr, status }) {
         el("span", { style: "width:" + Math.round(100 * fraction) + "%" }))),
     numericCell(s?.flagged),
     comparison ? numericCell(comparison.errors / comparison.referenceWords, percent(comparison.errors, comparison.referenceWords)) : numericCell(null),
-    comparison ? numericCell(comparison.referenceWords - comparison.draftWords, signed(comparison.referenceWords - comparison.draftWords)) : numericCell(null));
+    comparison ? numericCell(comparison.referenceWords - comparison.draftWords, signed(comparison.referenceWords - comparison.draftWords)) : numericCell(null),
+    numericCell(seconds, seconds == null ? null : clock(seconds)));
 }
 
 function renderOverview(rows) {
@@ -86,13 +87,18 @@ function renderOverview(rows) {
   const sumComparison = (key) => compared.reduce((sum, result) => sum + result[key], 0);
   const ref = sumComparison("referenceWords");
   const errors = sumComparison("errors");
+  const timed = rows.filter((row) => row.seconds != null && row.s?.verifiedSeconds > 0);
+  const timedSeconds = timed.reduce((sum, row) => sum + row.seconds, 0);
+  const timedVerified = timed.reduce((sum, row) => sum + row.s.verifiedSeconds, 0);
   const card = (label, value, detail) => el("div", { class: "library-stat" },
     el("dt", { text: label }), el("dd", { text: value }, el("small", { text: detail })));
   $("library-stats").replaceChildren(
     card("Verified raw duration / total raw duration", clock(doneRaw) + " / " + clock(raw), percent(doneRaw, raw) + " · " + done.length + " of " + rows.length + " files complete"),
     card("Verified segment duration / total segment duration", clock(verified) + " / " + clock(segmented), percent(verified, segmented) + " · overlaps counted once"),
     card("Verified words / total words", format(sumProgress("verifiedWords")) + " / " + format(sumProgress("words")), "Words in human-verified segments"),
-    card("WER", percent(errors, ref), ref ? format(errors) + " edits across " + compared.length + " comparable files" : "No comparable files"));
+    card("WER", percent(errors, ref), ref ? format(errors) + " edits across " + compared.length + " comparable files" : "No comparable files"),
+    card("Active time per hour of verified segments", timedVerified ? clock(3600 * timedSeconds / timedVerified) : "—",
+      timedVerified ? clock(timedSeconds) + " active / " + clock(timedVerified) + " verified across " + timed.length + " files" : "No verified audio with measurable autosave time"));
   $("library-overview").hidden = false;
 }
 
@@ -103,8 +109,11 @@ function updateSummary(rows, total) {
     (missing ? " · " + format(missing) + " unavailable" : "");
 }
 
-function setupTable(videos) {
+function setupTable(videos, activity) {
   const rows = videos.map(viewOf);
+  for (const row of rows) {
+    row.seconds = activeSeconds(activity.get(row.v.id), row.status.key === "done");
+  }
   const lastIndex = rows.findIndex((row) => row.v.id === lastActiveId());
   const unfinished = (row) => row && ["new", "progress"].includes(row.status.key);
   const last = rows[lastIndex];
@@ -211,9 +220,15 @@ function wireToken() {
 
 async function boot() {
   wireToken();
-  let videos;
+  let videos, activity;
   try {
-    videos = await fetchIndex({ withStats: true });
+    [videos, activity] = await Promise.all([
+      fetchIndex({ withStats: true }),
+      fetchActivity().catch((err) => {
+        console.warn("Could not load autosave history", err);
+        return new Map();
+      }),
+    ]);
   } catch (err) {
     const box = $("library-error");
     const denied = err.status === 401 || err.status === 403;
@@ -228,7 +243,7 @@ async function boot() {
     $("library-summary").textContent = "";
     return;
   }
-  setupTable(videos);
+  setupTable(videos, activity);
 }
 
 boot();

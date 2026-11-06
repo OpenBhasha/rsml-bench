@@ -79,6 +79,31 @@ export async function fetchAsrDraft(id) {
   return r.text();
 }
 
+export async function fetchActivity() {
+  const endpoint = new URL(`${API}/commits/main`);
+  let page = new URL("?limit=100", endpoint);
+  const byAudio = new Map();
+  while (page) {
+    const r = await fetch(page, { cache: "no-store", headers: authHeaders() });
+    if (!r.ok) throw readError("Autosave history", r);
+    for (const commit of await r.json()) {
+      const match = /^([\w-]+): (\d+) segments, (\d+) verified$/.exec(commit.title);
+      const time = Date.parse(commit.date);
+      if (!match || !Number.isFinite(time)) continue;
+      const [, id, segments, verified] = match;
+      if (!byAudio.has(id)) byAudio.set(id, []);
+      byAudio.get(id).push({ time, done: Number(segments) > 0 && segments === verified });
+    }
+    const next = /<([^>]+)>;\s*rel="next"/.exec(r.headers.get("Link") || "");
+    page = next ? new URL(next[1], endpoint) : null;
+    if (page && (page.origin !== endpoint.origin || page.pathname !== endpoint.pathname)) {
+      throw new Error("Invalid autosave history page");
+    }
+  }
+  for (const commits of byAudio.values()) commits.sort((a, b) => a.time - b.time);
+  return byAudio;
+}
+
 // [{ id, title, channel, url, duration_s, speakers_detected, speaker_share_pct, ... }]
 export async function fetchIndex() {
   const r = await fetch(`${FILES}/metadata.csv`, { cache: "no-store", headers: authHeaders() });

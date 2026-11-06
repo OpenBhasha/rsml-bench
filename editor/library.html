@@ -71,6 +71,7 @@
           <h1 id="library-stats-heading" class="h5">Library stats</h1>
           <dl id="library-stats" class="library-stats mb-2"></dl>
           <p class="small text-muted mb-3">WER and word difference compare the original IndicConformer drafts with fully verified verbatim transcripts. Word counts ignore punctuation and annotation markers.</p>
+          <p class="small text-muted mb-3">Active time sums gaps of up to five minutes between Hugging Face autosaves. For completed files, it stops at the first fully verified save.</p>
         </section>
         <form id="library-filters" class="library-tools" hidden>
           <label>ASR history
@@ -108,7 +109,7 @@
             <tr>
               <th>#</th><th>Video</th><th>Status</th><th>Channel</th><th>Style</th><th>Length</th><th>Speakers</th>
               <th>ASR history</th><th>Transcribed segments</th><th>Words</th><th>Verified words</th>
-              <th>Verified segments</th><th>Flagged</th><th>ASR WER</th><th>Words Δ</th>
+              <th>Verified segments</th><th>Flagged</th><th>ASR WER</th><th>Words Δ</th><th>Active time</th>
             </tr>
           </thead>
           <tbody id="library-rows"></tbody>
