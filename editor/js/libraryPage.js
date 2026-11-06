@@ -76,6 +76,31 @@ function renderRow({ v, i, s, asr, status, seconds }) {
     numericCell(seconds, seconds == null ? null : clock(seconds)));
 }
 
+function card(label, value, tone, icon) {
+  return el("div", { class: "library-stat " + tone },
+    el("dt", {}, el("i", { class: "bi bi-" + icon + " me-2", "aria-hidden": "true" }), label),
+    el("dd", { text: value }));
+}
+
+function renderTaskProgress(rows) {
+  const countStatus = (status) => rows.filter((row) => row.status.key === status).length;
+  const notStarted = countStatus("new");
+  const inProgress = countStatus("progress");
+  const unavailable = countStatus("unknown");
+  const flagged = rows.filter((row) => row.s?.flagged > 0).length;
+  const cards = [
+    card("Total tasks", format(rows.length), "blue", "collection"),
+    card("Pending tasks", format(notStarted + inProgress), "amber", "hourglass-split"),
+    card("Verified tasks", format(countStatus("done")), "green", "check-circle"),
+    card("In progress", format(inProgress), "teal", "play-circle"),
+    card("Not started", format(notStarted), "slate", "circle"),
+    card("Flagged tasks", format(flagged), "rose", "flag"),
+  ];
+  if (unavailable) cards.push(card("Unavailable", format(unavailable), "slate", "cloud-slash"));
+  $("library-task-stats").replaceChildren(...cards);
+  $("library-work").hidden = false;
+}
+
 function renderOverview(rows) {
   const raw = rows.reduce((sum, row) => sum + row.v.duration_s, 0);
   const sumProgress = (key) => rows.reduce((sum, row) => sum + (row.s?.[key] ?? 0), 0);
@@ -89,15 +114,12 @@ function renderOverview(rows) {
   const timed = rows.filter((row) => row.seconds != null && row.s?.verifiedSeconds > 0);
   const timedSeconds = timed.reduce((sum, row) => sum + row.seconds, 0);
   const timedVerified = timed.reduce((sum, row) => sum + row.s.verifiedSeconds, 0);
-  const card = (label, value, detail) => el("div", { class: "library-stat" },
-    el("dt", { text: label }), el("dd", { text: value }, el("small", { text: detail })));
   $("library-stats").replaceChildren(
-    card("Verified raw duration / total raw duration", clock(verifiedRaw) + " / " + clock(raw), percent(verifiedRaw, raw) + " · includes silence in the longest verified run"),
-    card("Verified segment duration / total segment duration", clock(verified) + " / " + clock(segmented), percent(verified, segmented) + " · overlaps counted once"),
-    card("Verified words / total words", format(sumProgress("verifiedWords")) + " / " + format(sumProgress("words")), "Words in human-verified segments"),
-    card("WER", percent(errors, ref), ref ? format(errors) + " edits across " + compared.length + " comparable files" : "No comparable files"),
-    card("Productivity", timedSeconds ? clock(3600 * timedVerified / timedSeconds) + " per active hour" : "—",
-      timedSeconds ? clock(timedVerified) + " of verified segments in " + clock(timedSeconds) + " of active work" : "No verified audio with measurable autosave time"));
+    card("Verified raw duration / total", clock(verifiedRaw) + " / " + clock(raw), "blue", "soundwave"),
+    card("Verified segment duration / total", clock(verified) + " / " + clock(segmented), "teal", "bar-chart-steps"),
+    card("Verified words / total", format(sumProgress("verifiedWords")) + " / " + format(sumProgress("words")), "green", "fonts"),
+    card("WER", percent(errors, ref), "rose", "spellcheck"),
+    card("Productivity per active hour", timedSeconds ? clock(3600 * timedVerified / timedSeconds) : "—", "amber", "speedometer2"));
   $("library-overview").hidden = false;
 }
 
@@ -124,12 +146,13 @@ function setupTable(videos, activity) {
     continueLink.href = editorLink(next.v.id);
     continueLink.title = next.v.title;
   }
+  renderTaskProgress(rows);
   renderOverview(rows);
   $("library-rows").replaceChildren(...rows.map(renderRow));
   updateSummary(rows, rows.length);
 
   if (!window.DataTable) {
-    $("library-error").textContent = "Table controls could not load. Reload to try again.";
+    $("library-error").textContent = "Table controls unavailable.";
     $("library-error").hidden = false;
     return;
   }
@@ -184,15 +207,15 @@ function wireToken() {
   const show = async () => {
     const token = getToken();
     if (!token) {
-      status.textContent = "Not signed in: edits will not save until you add a token.";
+      status.textContent = "Not signed in";
       status.className = "small mt-1 text-warning";
       return;
     }
-    status.textContent = "Checking the token...";
+    status.textContent = "Signing in…";
     status.className = "small mt-1 text-muted";
     try {
       const me = await whoami(token);
-      status.textContent = `Signed in as ${me.name}. Edits from this tab save to ${dataset}.`;
+      status.textContent = `Signed in as ${me.name}`;
       status.className = "small mt-1 text-success";
     } catch (err) {
       if (err.status === 401 || err.status === 403) setToken("");
@@ -232,11 +255,9 @@ async function boot() {
     const box = $("library-error");
     const denied = err.status === 401 || err.status === 403;
     if (!isLocal && denied) {
-      box.textContent = getToken()
-        ? "This token cannot read the library yet. Request access to the dataset on Hugging Face, then reload."
-        : "This library is gated. Request access to the dataset on Hugging Face, then paste your access token above.";
+      box.textContent = getToken() ? "Hugging Face dataset access denied." : "Hugging Face sign-in required.";
     } else {
-      box.textContent = `Could not load the library (${err.message || err}).${isLocal ? " Start it with library_server.py and open the page it prints." : " Check the connection and reload."}`;
+      box.textContent = `Could not load the library (${err.message || err}).`;
     }
     box.hidden = false;
     $("library-summary").textContent = "";

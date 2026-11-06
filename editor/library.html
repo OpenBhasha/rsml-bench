@@ -9,23 +9,36 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/2.3.5/css/dataTables.bootstrap5.min.css" />
     <link rel="stylesheet" href="css/app.css" />
     <style>
-      main { overflow: auto; }
-      .hf-token { border: 1px solid var(--bs-border-color, #dee2e6); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
-      .library { max-width: 1480px; width: 100%; margin: 0 auto; padding: 22px 20px 60px; }
-      .library-tools { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 16px; margin-bottom: 14px; }
-      .library-tools label { font-size: 13px; }
-      .library-tools input[type="number"] { width: 8em; }
-      .library-summary { font-size: 14px; color: var(--muted); }
-      .library-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 215px), 1fr)); gap: 10px; }
-      .library-stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
-      .library-stat dt { color: var(--muted); font-size: 13px; }
-      .library-stat dd { margin: 0; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
-      .library-stat small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
-      .library-table { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; width: 100%; }
-      .library-table th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; background: var(--paper); white-space: nowrap; }
-      .library-table td { vertical-align: middle; font-size: 14px; }
-      .library-table tbody tr:hover { background: #fbfaff; }
-      .lib-title a { font-weight: 600; color: var(--ink); text-decoration: none; }
+      main { overflow: auto; background: #f5f6fb; }
+      .library { max-width: 1540px; width: 100%; margin: 0 auto; padding: clamp(12px, 2.4vw, 34px) clamp(12px, 2.5vw, 36px) 60px; }
+      .library-panel { min-width: 0; margin-bottom: 18px; padding: clamp(12px, 1.8vw, 24px); background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 3px 12px #26213e08; }
+      .library-heading { margin: 0 0 14px; font-size: 18px; letter-spacing: -.02em; }
+      .hf-token { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding-block: 10px; }
+      .hf-token form { flex: 1 1 270px; max-width: 430px; }
+      .hf-token input { min-width: 0; }
+      .hf-token a { font-weight: 600; }
+      .library-tools { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 12px; margin-bottom: 14px; padding: 12px; border-radius: 10px; background: #f5f6fb; }
+      .library-tools label { font-size: 12px; font-weight: 600; color: #504c60; }
+      .library-tools label :is(select, input[type="number"]) { margin-top: 4px; }
+      .library-tools input[type="number"] { width: 7em; }
+      .library-summary { font-size: 13px; color: var(--muted); }
+      .library-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 158px), 1fr)); gap: 10px; margin: 0; }
+      #library-stats { grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); }
+      .library-stat { --tone: #5143a2; --tint: #f1eeff; display: grid; align-content: space-between; gap: 8px; min-height: 90px; background: var(--tint); color: var(--tone); border: 1px solid color-mix(in srgb, var(--tone) 20%, transparent); border-radius: 12px; padding: 11px 13px; }
+      .library-stat.blue { --tone: #214e96; --tint: #edf4ff; }
+      .library-stat.green { --tone: #166348; --tint: #e9f8f0; }
+      .library-stat.amber { --tone: #804803; --tint: #fff4e0; }
+      .library-stat.rose { --tone: #923959; --tint: #fff0f5; }
+      .library-stat.teal { --tone: #146468; --tint: #e9f8f8; }
+      .library-stat.slate { --tone: #48566b; --tint: #eff3f8; }
+      .library-stat dt { font-size: 12px; line-height: 1.4; }
+      .library-stat dd { margin: 0; font-size: 21px; line-height: 1.25; font-weight: 700; font-variant-numeric: tabular-nums; }
+      .library-table { width: 100%; --bs-table-striped-bg: #f8f9fc; --bs-table-hover-bg: #f0ecff; --bs-table-border-color: #eceaf2; }
+      .library-table th { font-size: 12px; color: #514b65; font-weight: 700; background: #f1eff8; white-space: nowrap; }
+      .library-table :is(th, td) { padding: 10px 12px; }
+      .library-table td { vertical-align: middle; font-size: 13px; }
+      .library-table td.lib-title { min-width: min(240px, 54vw); max-width: 360px; overflow-wrap: anywhere; }
+      .lib-title a { font-weight: 650; color: var(--ink); text-decoration: none; }
       .lib-title a:hover { color: var(--accent); }
       .lib-title .lib-yt { margin-left: 6px; font-size: 12px; color: var(--muted); }
       .lib-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -33,9 +46,15 @@
       .lib-bar > span { display: block; height: 100%; background: var(--ok); }
       .lib-status { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
       .lib-status.new { background: var(--paper); color: var(--muted); }
-      .lib-status.progress { background: #fff4de; color: var(--warn); }
-      .lib-status.done { background: #dff5ea; color: var(--ok); }
+      .lib-status.progress { background: #fff4de; color: #804803; }
+      .lib-status.done { background: #dff5ea; color: #166348; }
+      .lib-status.unknown { background: #f1eafa; color: #64418b; }
       .library-table td.dt-empty { padding: 30px; color: var(--muted); }
+      .library .dt-scroll { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+      .library .dt-search input { max-width: min(260px, 65vw); }
+      .library .dt-layout-row { font-size: 13px; }
+      .library-table-wrap { overflow-x: auto; }
+      .library :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     </style>
   </head>
   <body>
@@ -54,66 +73,69 @@
 
     <main>
       <section class="library">
-        <div id="hf-token-box" class="hf-token" hidden>
-          <div class="small text-muted mb-2">
-            Autosave commits each video's transcript to
-            <a id="hf-dataset-link" href="#" target="_blank" rel="noopener"></a> on Hugging Face.
-            Paste an access token with write access to that dataset. It is kept in this tab only, and sent only to huggingface.co.
-          </div>
+        <div id="hf-token-box" class="hf-token library-panel" hidden>
+          <a id="hf-dataset-link" class="small" href="#" target="_blank" rel="noopener">Hugging Face dataset</a>
           <form id="hf-token-form" class="d-flex gap-2 align-items-center">
             <input id="hf-token-input" type="password" autocomplete="off" spellcheck="false" class="form-control form-control-sm" placeholder="Access token" aria-label="Hugging Face access token" />
             <button class="btn btn-sm btn-primary text-nowrap" type="submit">Use token</button>
             <button id="hf-token-clear" class="btn btn-sm btn-outline-secondary text-nowrap" type="button">Forget</button>
           </form>
-          <div id="hf-token-status" class="small mt-1"></div>
+          <div id="hf-token-status" class="small" role="status"></div>
         </div>
-        <section id="library-overview" aria-labelledby="library-stats-heading" hidden>
-          <h1 id="library-stats-heading" class="h5">Library stats</h1>
-          <dl id="library-stats" class="library-stats mb-2"></dl>
-          <p class="small text-muted mb-3">WER and word difference compare the original IndicConformer drafts with fully verified verbatim transcripts. Word counts ignore punctuation and annotation markers.</p>
-          <p class="small text-muted mb-3">Active time sums gaps of up to five minutes between Hugging Face autosaves. For completed files, it stops at the first fully verified save.</p>
+        <section id="library-work" class="library-panel" aria-labelledby="library-work-heading" hidden>
+          <h1 id="library-work-heading" class="library-heading">Task progress</h1>
+          <dl id="library-task-stats" class="library-stats"></dl>
         </section>
-        <form id="library-filters" class="library-tools" hidden>
-          <label>ASR history
-            <select id="library-asr" class="form-select form-select-sm">
-              <option value="">All tasks</option><option value="yes">ASR draft recorded</option><option value="unknown">Unrecorded</option>
-            </select>
-          </label>
-          <label>Transcript
-            <select id="library-transcript" class="form-select form-select-sm">
-              <option value="">Any coverage</option><option value="full">Complete</option>
-              <option value="partial">Partial</option><option value="none">Empty</option><option value="unknown">Unavailable</option>
-            </select>
-          </label>
-          <label>Human verification
-            <select id="library-verification" class="form-select form-select-sm">
-              <option value="">Any status</option><option value="done">Done</option>
-              <option value="progress">In progress</option><option value="new">Not started</option><option value="unknown">Unavailable</option>
-            </select>
-          </label>
-          <label>Style <select id="library-style" class="form-select form-select-sm"><option value="">Any style</option></select></label>
-          <label>Speakers
-            <select id="library-speakers" class="form-select form-select-sm">
-              <option value="">Any count</option><option value="single">One</option><option value="multi">Multiple</option>
-            </select>
-          </label>
-          <label>Min. words <input id="library-min-words" type="number" min="0" step="1" class="form-control form-control-sm" /></label>
-          <label>Max. words <input id="library-max-words" type="number" min="0" step="1" class="form-control form-control-sm" /></label>
-          <label class="align-self-center"><input id="library-flagged" type="checkbox" class="form-check-input me-1" />Flagged only</label>
-          <button class="btn btn-sm btn-outline-secondary" type="reset">Clear filters</button>
-        </form>
-        <div id="library-summary" class="library-summary mb-2" role="status">Loading…</div>
-        <div id="library-error" class="alert alert-danger" hidden></div>
-        <table id="library-table" class="library-table table table-sm mb-0">
-          <thead>
-            <tr>
-              <th>#</th><th>Video</th><th>Status</th><th>Channel</th><th>Style</th><th>Length</th><th>Speakers</th>
-              <th>ASR history</th><th>Transcribed segments</th><th>Words</th><th>Verified words</th>
-              <th>Verified segments</th><th>Flagged</th><th>ASR WER</th><th>Words Δ</th><th>Active time</th>
-            </tr>
-          </thead>
-          <tbody id="library-rows"></tbody>
-        </table>
+        <section id="library-overview" class="library-panel" aria-labelledby="library-stats-heading" hidden>
+          <h2 id="library-stats-heading" class="library-heading">Verification metrics</h2>
+          <dl id="library-stats" class="library-stats"></dl>
+        </section>
+        <section class="library-panel" aria-labelledby="library-table-heading">
+          <h2 id="library-table-heading" class="library-heading">Audio files</h2>
+          <form id="library-filters" class="library-tools" hidden>
+            <label>ASR history
+              <select id="library-asr" class="form-select form-select-sm">
+                <option value="">All tasks</option><option value="yes">ASR draft recorded</option><option value="unknown">Unrecorded</option>
+              </select>
+            </label>
+            <label>Transcript
+              <select id="library-transcript" class="form-select form-select-sm">
+                <option value="">Any coverage</option><option value="full">Complete</option>
+                <option value="partial">Partial</option><option value="none">Empty</option><option value="unknown">Unavailable</option>
+              </select>
+            </label>
+            <label>Human verification
+              <select id="library-verification" class="form-select form-select-sm">
+                <option value="">Any status</option><option value="done">Done</option>
+                <option value="progress">In progress</option><option value="new">Not started</option><option value="unknown">Unavailable</option>
+              </select>
+            </label>
+            <label>Style <select id="library-style" class="form-select form-select-sm"><option value="">Any style</option></select></label>
+            <label>Speakers
+              <select id="library-speakers" class="form-select form-select-sm">
+                <option value="">Any count</option><option value="single">One</option><option value="multi">Multiple</option>
+              </select>
+            </label>
+            <label>Min. words <input id="library-min-words" type="number" min="0" step="1" class="form-control form-control-sm" /></label>
+            <label>Max. words <input id="library-max-words" type="number" min="0" step="1" class="form-control form-control-sm" /></label>
+            <label class="align-self-center"><input id="library-flagged" type="checkbox" class="form-check-input me-1" />Flagged only</label>
+            <button class="btn btn-sm btn-outline-secondary" type="reset">Clear filters</button>
+          </form>
+          <div id="library-summary" class="library-summary mb-2" role="status">Loading…</div>
+          <div id="library-error" class="alert alert-danger" hidden></div>
+          <div class="library-table-wrap">
+            <table id="library-table" class="library-table table table-sm table-striped table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>#</th><th>Video</th><th>Status</th><th>Channel</th><th>Style</th><th>Length</th><th>Speakers</th>
+                  <th>ASR history</th><th>Transcribed segments</th><th>Words</th><th>Verified words</th>
+                  <th>Verified segments</th><th>Flagged</th><th>ASR WER</th><th>Words Δ</th><th>Active time</th>
+                </tr>
+              </thead>
+              <tbody id="library-rows"></tbody>
+            </table>
+          </div>
+        </section>
       </section>
     </main>
 
