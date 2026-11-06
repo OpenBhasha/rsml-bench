@@ -16,6 +16,11 @@
       .library-tools label { font-size: 13px; }
       .library-tools input[type="number"] { width: 8em; }
       .library-summary { font-size: 14px; color: var(--muted); }
+      .library-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 215px), 1fr)); gap: 10px; }
+      .library-stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+      .library-stat dt { color: var(--muted); font-size: 13px; }
+      .library-stat dd { margin: 0; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+      .library-stat small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
       .library-table { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; width: 100%; }
       .library-table th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; background: var(--paper); white-space: nowrap; }
       .library-table td { vertical-align: middle; font-size: 14px; }
@@ -43,7 +48,7 @@
         </div>
       </div>
       <div class="header-right">
-        <a id="open-next" class="btn btn-sm btn-primary" href="#" hidden><i class="bi bi-play-fill"></i> Open next unfinished</a>
+        <a id="library-continue" class="btn btn-sm btn-primary" href="#" hidden><i class="bi bi-play-fill" aria-hidden="true"></i> Continue</a>
       </div>
     </header>
 
@@ -62,6 +67,11 @@
           </form>
           <div id="hf-token-status" class="small mt-1"></div>
         </div>
+        <section id="library-overview" aria-labelledby="library-stats-heading" hidden>
+          <h1 id="library-stats-heading" class="h5">Library stats</h1>
+          <dl id="library-stats" class="library-stats mb-2"></dl>
+          <p class="small text-muted mb-3">WER and word difference compare the original IndicConformer drafts with fully verified verbatim transcripts. Word counts ignore punctuation and annotation markers.</p>
+        </section>
         <div id="library-summary" class="library-summary mb-2" role="status">Loading…</div>
         <p class="small text-muted mb-3">ASR history records tasks seeded with IndicConformer. Verified words are words in cues marked verified by an annotator.</p>
         <form id="library-filters" class="library-tools" hidden>
@@ -99,7 +109,7 @@
             <tr>
               <th>#</th><th>Video</th><th>Channel</th><th>Style</th><th>Length</th><th>Speakers</th>
               <th>ASR history</th><th>Transcript cues</th><th>Words</th><th>Verified words</th>
-              <th>Verified cues</th><th>Flagged</th><th>Status</th>
+              <th>Verified cues</th><th>Flagged</th><th>Status</th><th>ASR WER</th><th>Words Δ</th>
             </tr>
           </thead>
           <tbody id="library-rows"></tbody>

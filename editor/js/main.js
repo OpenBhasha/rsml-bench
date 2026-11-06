@@ -13,7 +13,7 @@ import { renderCodeMixDefault, renderSpeakerSettings, defaultSpeakerId } from ".
 import { renderInsights } from "./insights.js";
 import { BHASHACHECK_VERSION } from "./version.js";
 import { RSML_VERSION } from "./rsmlLib.js";
-import { libraryId, fetchAudio, fetchRsml, fetchIndex, saveRsml, hasUnsaved } from "./library.js";
+import { libraryId, fetchAudio, fetchRsml, fetchIndex, saveRsml, hasUnsaved, rememberActive } from "./library.js";
 
 // Library mode (library.js): index.html?id=<video id> opens that video, with its audio and RSML
 // fetched from the local server and every edit autosaved back into the RSML file. Nothing is kept
@@ -656,6 +656,7 @@ async function openFromLibrary(id) {
     state.audioMeta = { name: `${id}.wav`, type: audio.type, size: audio.size, duration: 0 };
     await setWorkingAudio(audio);
     await importSrt(new File([rsml], `${id}.rsml`, { type: "text/plain" }));
+    rememberActive(id);
     if (localRsml?.text && localRsml.text !== remoteRsml) {
       toast("Restored the local IndexedDB copy. Use Sync now to update Hugging Face.", "info");
       const b = savedBadge();

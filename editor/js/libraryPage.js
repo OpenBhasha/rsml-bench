@@ -1,7 +1,6 @@
-// library.html: every video in the library with its speaker facts and its progress, both from the
-// server (progress is read from each video's rsml file; nothing is stored in the browser).
+// library.html: every video in the library, with progress read from its RSML file.
 
-import { fetchIndex, isLocal, getToken, setToken, whoami } from "./library.js";
+import { fetchIndex, isLocal, getToken, setToken, whoami, lastActiveId } from "./library.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -44,12 +43,15 @@ function viewOf(v, i) {
 }
 
 const format = (n) => n.toLocaleString();
+const percent = (n, total) => total ? (100 * n / total).toFixed(1) + "%" : "—";
+const signed = (n) => (n > 0 ? "+" : "") + format(n);
 const numericCell = (n, label) => el("td", {
   class: "lib-num", "data-order": n ?? -1, text: label ?? (n == null ? "—" : format(n)),
 });
 
 function renderRow({ v, i, s, asr, status }) {
   const fraction = s?.segments ? s.verified / s.segments : 0;
+  const comparison = v.comparison;
   const title = el("td", { class: "lib-title", "data-search": v.title + " " + v.id },
     el("a", { href: editorLink(v.id), text: v.title }));
   if (/^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(v.url || "")) {
@@ -67,7 +69,33 @@ function renderRow({ v, i, s, asr, status }) {
       s && el("div", { class: "lib-bar", "aria-hidden": "true" },
         el("span", { style: "width:" + Math.round(100 * fraction) + "%" }))),
     numericCell(s?.flagged),
-    el("td", {}, el("span", { class: "lib-status " + status.key, text: status.label })));
+    el("td", {}, el("span", { class: "lib-status " + status.key, text: status.label })),
+    comparison ? numericCell(comparison.errors / comparison.referenceWords, percent(comparison.errors, comparison.referenceWords)) : numericCell(null),
+    comparison ? numericCell(comparison.referenceWords - comparison.draftWords, signed(comparison.referenceWords - comparison.draftWords)) : numericCell(null));
+}
+
+function renderOverview(rows) {
+  const done = rows.filter((row) => row.status.key === "done");
+  const raw = rows.reduce((sum, row) => sum + row.v.duration_s, 0);
+  const doneRaw = done.reduce((sum, row) => sum + row.v.duration_s, 0);
+  const sumProgress = (key) => rows.reduce((sum, row) => sum + (row.s?.[key] ?? 0), 0);
+  const verified = sumProgress("verifiedSeconds");
+  const segmented = sumProgress("segmentSeconds");
+  const compared = rows.flatMap(({ v }) => v.comparison ? [v.comparison] : []);
+  const sumComparison = (key) => compared.reduce((sum, result) => sum + result[key], 0);
+  const ref = sumComparison("referenceWords");
+  const draft = sumComparison("draftWords");
+  const errors = sumComparison("errors");
+  const card = (label, value, detail) => el("div", { class: "library-stat" },
+    el("dt", { text: label }), el("dd", { text: value }, el("small", { text: detail })));
+  $("library-stats").replaceChildren(
+    card("Fully verified audio / raw audio", clock(doneRaw) + " / " + clock(raw), percent(doneRaw, raw) + " · " + done.length + " of " + rows.length + " files complete"),
+    card("Verified cues / raw audio", clock(verified) + " / " + clock(raw), percent(verified, raw) + " of total audio covered"),
+    card("Verified cues / segmented audio", clock(verified) + " / " + clock(segmented), percent(verified, segmented) + " · overlaps counted once"),
+    card("Verified words / all words", format(sumProgress("verifiedWords")) + " / " + format(sumProgress("words")), "Words in human-verified cues"),
+    card("ASR word error rate", percent(errors, ref), ref ? format(errors) + " edits across " + compared.length + " comparable files" : "No comparable files"),
+    card("Verbatim − ASR words", ref ? signed(ref - draft) : "—", ref ? format(ref) + " verbatim · " + format(draft) + " ASR" : "No comparable files"));
+  $("library-overview").hidden = false;
 }
 
 function updateSummary(rows, total) {
@@ -86,9 +114,18 @@ function updateSummary(rows, total) {
 
 function setupTable(videos) {
   const rows = videos.map(viewOf);
-  const next = rows.find((r) => ["new", "progress"].includes(r.status.key));
-  $("open-next").hidden = !next;
-  if (next) $("open-next").href = editorLink(next.v.id);
+  const lastIndex = rows.findIndex((row) => row.v.id === lastActiveId());
+  const unfinished = (row) => row && ["new", "progress"].includes(row.status.key);
+  const last = rows[lastIndex];
+  const next = unfinished(last) ? last
+    : rows.slice(lastIndex + 1).find(unfinished) || rows.slice(0, Math.max(0, lastIndex)).find(unfinished);
+  const continueLink = $("library-continue");
+  continueLink.hidden = !next;
+  if (next) {
+    continueLink.href = editorLink(next.v.id);
+    continueLink.title = next.v.title;
+  }
+  renderOverview(rows);
   $("library-rows").replaceChildren(...rows.map(renderRow));
   updateSummary(rows, rows.length);
 

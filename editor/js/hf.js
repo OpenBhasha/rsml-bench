@@ -71,6 +71,14 @@ export async function fetchRsml(id) {
   return text;
 }
 
+export async function fetchAsrDraft(id) {
+  const revision = window.RSML_BENCH.asrDraftRevision;
+  const url = `${HUB}/datasets/${dataset}/resolve/${revision}/data/${lang}/${encodeURIComponent(id)}.rsml`;
+  const r = await fetch(url, { headers: authHeaders() });
+  if (!r.ok) throw readError(`ASR draft for ${id}`, r);
+  return r.text();
+}
+
 // [{ id, title, channel, url, duration_s, speakers_detected, speaker_share_pct, ... }]
 export async function fetchIndex() {
   const r = await fetch(`${FILES}/metadata.csv`, { cache: "no-store", headers: authHeaders() });

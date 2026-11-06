@@ -3,7 +3,8 @@
 // To add a language, publish it with publish_hf.py and change `lang` (or add a picker).
 window.RSML_BENCH = { dataset: "openbhasha/rsml-bench", lang: "telugu" };
 
-// Tasks seeded by the IndicConformer upload to this dataset (1ef96e6f580e79d2d056393959072adfb838a952).
+// Original IndicConformer drafts and the tasks seeded by that upload.
+window.RSML_BENCH.asrDraftRevision = "1ef96e6f580e79d2d056393959072adfb838a952";
 window.RSML_BENCH.asrDraftIds = [
   "-vyuLcHDt3s", "07uoo584-hQ", "2zw9wLynL8Y", "43_ld0KpqIM", "ABVPVV3C96w",
   "EGp79Cv9_gI", "FUgm2ptxvYs", "GIxdQGSsvZA", "GWUsFs-gqFc", "HRZ3WdMtJlw",
