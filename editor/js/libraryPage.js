@@ -76,9 +76,12 @@ function renderRow({ v, i, s, asr, status, seconds }) {
     numericCell(seconds, seconds == null ? null : clock(seconds)));
 }
 
-function card(label, value, tone, icon) {
+function card(label, value, tone, icon, definition) {
+  const info = el("details", { class: "library-info", name: "library-stat-info" },
+    el("summary", { "aria-label": label + " info" }, el("i", { class: "bi bi-info-circle", "aria-hidden": "true" })),
+    el("div", { class: "library-info-popover", text: definition }));
   return el("div", { class: "library-stat " + tone },
-    el("dt", {}, el("i", { class: "bi bi-" + icon + " me-2", "aria-hidden": "true" }), label),
+    el("dt", {}, el("i", { class: "bi bi-" + icon + " me-2", "aria-hidden": "true" }), el("span", { text: label }), info),
     el("dd", { text: value }));
 }
 
@@ -89,14 +92,14 @@ function renderTaskProgress(rows) {
   const unavailable = countStatus("unknown");
   const flagged = rows.filter((row) => row.s?.flagged > 0).length;
   const cards = [
-    card("Total tasks", format(rows.length), "blue", "collection"),
-    card("Pending tasks", format(notStarted + inProgress), "amber", "hourglass-split"),
-    card("Verified tasks", format(countStatus("done")), "green", "check-circle"),
-    card("In progress", format(inProgress), "teal", "play-circle"),
-    card("Not started", format(notStarted), "slate", "circle"),
-    card("Flagged tasks", format(flagged), "rose", "flag"),
+    card("Total tasks", format(rows.length), "blue", "collection", "All audio files in the library."),
+    card("Pending tasks", format(notStarted + inProgress), "amber", "hourglass-split", "Tasks in progress or awaiting verification."),
+    card("Verified tasks", format(countStatus("done")), "green", "check-circle", "Tasks with every segment verified."),
+    card("In progress", format(inProgress), "teal", "play-circle", "Tasks with some segments verified."),
+    card("Not started", format(notStarted), "slate", "circle", "Tasks with zero verified segments."),
+    card("Flagged tasks", format(flagged), "rose", "flag", "Tasks with at least one flagged segment."),
   ];
-  if (unavailable) cards.push(card("Unavailable", format(unavailable), "slate", "cloud-slash"));
+  if (unavailable) cards.push(card("Unavailable", format(unavailable), "slate", "cloud-slash", "Tasks whose transcripts could not be loaded."));
   $("library-task-stats").replaceChildren(...cards);
   $("library-work").hidden = false;
 }
@@ -115,11 +118,16 @@ function renderOverview(rows) {
   const timedSeconds = timed.reduce((sum, row) => sum + row.seconds, 0);
   const timedVerified = timed.reduce((sum, row) => sum + row.s.verifiedSeconds, 0);
   $("library-stats").replaceChildren(
-    card("Raw audio", clock(verifiedRaw) + " / " + clock(raw), "blue", "soundwave"),
-    card("Segment audio", clock(verified) + " / " + clock(segmented), "teal", "bar-chart-steps"),
-    card("Verified words", format(sumProgress("verifiedWords")) + " / " + format(sumProgress("words")), "green", "fonts"),
-    card("WER", percent(errors, ref), "rose", "spellcheck"),
-    card("Productivity", timedSeconds ? clock(3600 * timedVerified / timedSeconds) + " / hr" : "—", "amber", "speedometer2"));
+    card("Raw audio", clock(verifiedRaw) + " / " + clock(raw), "blue", "soundwave",
+      "Verified time / total. Unfinished files include silence in the longest verified run."),
+    card("Segment audio", clock(verified) + " / " + clock(segmented), "teal", "bar-chart-steps",
+      "Verified segment time / total segment time. Overlaps count once."),
+    card("Verified words", format(sumProgress("verifiedWords")) + " / " + format(sumProgress("words")), "green", "fonts",
+      "Words in verified segments / all transcript words."),
+    card("WER", percent(errors, ref), "rose", "spellcheck",
+      "ASR word error rate against fully verified verbatim transcripts."),
+    card("Productivity", timedSeconds ? clock(3600 * timedVerified / timedSeconds) + " / hr" : "—", "amber", "speedometer2",
+      "Verified segment audio per active hour. Autosave gaps over five minutes are excluded."));
   $("library-overview").hidden = false;
 }
 

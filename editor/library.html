@@ -13,14 +13,12 @@
       .library { max-width: 1540px; width: 100%; margin: 0 auto; padding: clamp(12px, 2.4vw, 34px) clamp(12px, 2.5vw, 36px) 60px; }
       .library-panel { min-width: 0; margin-bottom: 18px; padding: clamp(12px, 1.8vw, 24px); background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 3px 12px #26213e08; }
       .library-heading { margin: 0 0 14px; font-size: 18px; letter-spacing: -.02em; }
-      .library-panel-heading { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
-      .library-panel-heading .library-heading { margin: 0; }
-      .library-info { position: relative; }
-      .library-info summary { display: grid; place-items: center; width: 30px; height: 30px; list-style: none; color: var(--accent-ink); background: var(--accent-soft); border-radius: 50%; cursor: pointer; }
+      .library-info summary { position: absolute; top: 7px; right: 8px; display: grid; place-items: center; width: 24px; height: 24px; list-style: none; color: inherit; border-radius: 50%; cursor: pointer; }
+      .library-info summary:hover, .library-info[open] summary { background: color-mix(in srgb, currentColor 12%, transparent); }
       .library-info summary::-webkit-details-marker { display: none; }
-      .library-info-popover { position: absolute; z-index: 5; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); width: min(310px, calc(100vw - 64px)); padding: 12px; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 22px #26213e24; font-size: 13px; }
-      .library-info-popover dl { margin: 0; }
-      .library-info-popover dd:last-child { margin: 0; }
+      .library-info-popover { position: absolute; z-index: 5; inset: 34px 6px auto; padding: 10px; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 22px #26213e24; font-size: 13px; font-weight: 400; }
+      .library-stat:has(.library-info) { position: relative; }
+      .library-stat:has(.library-info) dt { padding-right: 24px; }
       .hf-token { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding-block: 10px; }
       .hf-token form { flex: 1 1 270px; max-width: 430px; }
       .hf-token input { min-width: 0; }
@@ -95,26 +93,7 @@
           <dl id="library-task-stats" class="library-stats"></dl>
         </section>
         <section id="library-overview" class="library-panel" aria-labelledby="library-stats-heading" hidden>
-          <div class="library-panel-heading">
-            <h2 id="library-stats-heading" class="library-heading">Verification</h2>
-            <details class="library-info">
-              <summary aria-label="Metric definitions"><i class="bi bi-info-circle" aria-hidden="true"></i></summary>
-              <div class="library-info-popover">
-                <dl>
-                  <dt>Raw audio</dt>
-                  <dd>Verified time / total. Unfinished files include silence in the longest verified run.</dd>
-                  <dt>Segment audio</dt>
-                  <dd>Verified segment time / total segment time. Overlaps count once.</dd>
-                  <dt>Verified words</dt>
-                  <dd>Words in verified segments / all transcript words.</dd>
-                  <dt>WER</dt>
-                  <dd>Word error rate against fully verified verbatim transcripts.</dd>
-                  <dt>Productivity</dt>
-                  <dd>Verified segment audio per active hour. Autosave gaps over five minutes are excluded.</dd>
-                </dl>
-              </div>
-            </details>
-          </div>
+          <h2 id="library-stats-heading" class="library-heading">Verification</h2>
           <dl id="library-stats" class="library-stats"></dl>
         </section>
         <section class="library-panel" aria-labelledby="library-table-heading">
@@ -170,6 +149,6 @@
     <script src="https://cdn.datatables.net/2.3.5/js/dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/2.3.5/js/dataTables.bootstrap5.min.js"></script>
     <script src="config.js"></script>
-    <script type="module" src="js/libraryPage.js"></script>
+    <script type="module" src="js/libraryPage.js?v=card-info"></script>
   </body>
 </html>
