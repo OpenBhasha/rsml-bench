@@ -13,10 +13,10 @@
       .library { max-width: 1540px; width: 100%; margin: 0 auto; padding: clamp(12px, 2.4vw, 34px) clamp(12px, 2.5vw, 36px) 60px; }
       .library-panel { min-width: 0; margin-bottom: 18px; padding: clamp(12px, 1.8vw, 24px); background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 3px 12px #26213e08; }
       .library-heading { margin: 0 0 14px; font-size: 18px; letter-spacing: -.02em; }
-      .library-info summary { position: absolute; top: 7px; right: 8px; display: grid; place-items: center; width: 24px; height: 24px; list-style: none; color: inherit; border-radius: 50%; cursor: pointer; }
-      .library-info summary:hover, .library-info[open] summary { background: color-mix(in srgb, currentColor 12%, transparent); }
-      .library-info summary::-webkit-details-marker { display: none; }
-      .library-info-popover { position: absolute; z-index: 5; inset: 34px 6px auto; padding: 10px; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 22px #26213e24; font-size: 13px; font-weight: 400; }
+      .library-info-icon { position: absolute; top: 7px; right: 8px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: help; }
+      .library-info-icon:hover, .library-info-icon:focus-visible { background: color-mix(in srgb, currentColor 12%, transparent); }
+      .library-info-popover { visibility: hidden; position: absolute; z-index: 5; inset: 31px 6px auto; padding: 10px; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 22px #26213e24; font-size: 13px; font-weight: 400; }
+      .library-info:hover .library-info-popover, .library-info-icon:focus-visible + .library-info-popover { visibility: visible; }
       .library-stat:has(.library-info) { position: relative; }
       .library-stat:has(.library-info) dt { padding-right: 24px; }
       .hf-token { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding-block: 10px; }
@@ -149,6 +149,6 @@
     <script src="https://cdn.datatables.net/2.3.5/js/dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/2.3.5/js/dataTables.bootstrap5.min.js"></script>
     <script src="config.js"></script>
-    <script type="module" src="js/libraryPage.js?v=card-info"></script>
+    <script type="module" src="js/libraryPage.js?v=hover-info"></script>
   </body>
 </html>

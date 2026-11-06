@@ -77,9 +77,11 @@ function renderRow({ v, i, s, asr, status, seconds }) {
 }
 
 function card(label, value, tone, icon, definition) {
-  const info = el("details", { class: "library-info", name: "library-stat-info" },
-    el("summary", { "aria-label": label + " info" }, el("i", { class: "bi bi-info-circle", "aria-hidden": "true" })),
-    el("div", { class: "library-info-popover", text: definition }));
+  const tooltipId = "info-" + label.toLowerCase().replaceAll(" ", "-");
+  const info = el("span", { class: "library-info" },
+    el("span", { class: "library-info-icon", tabindex: "0", "aria-label": label + " info", "aria-describedby": tooltipId },
+      el("i", { class: "bi bi-info-circle", "aria-hidden": "true" })),
+    el("span", { class: "library-info-popover", id: tooltipId, role: "tooltip", text: definition }));
   return el("div", { class: "library-stat " + tone },
     el("dt", {}, el("i", { class: "bi bi-" + icon + " me-2", "aria-hidden": "true" }), el("span", { text: label }), info),
     el("dd", { text: value }));
