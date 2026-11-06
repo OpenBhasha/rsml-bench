@@ -96,8 +96,8 @@ function renderOverview(rows) {
     card("Verified segment duration / total segment duration", clock(verified) + " / " + clock(segmented), percent(verified, segmented) + " · overlaps counted once"),
     card("Verified words / total words", format(sumProgress("verifiedWords")) + " / " + format(sumProgress("words")), "Words in human-verified segments"),
     card("WER", percent(errors, ref), ref ? format(errors) + " edits across " + compared.length + " comparable files" : "No comparable files"),
-    card("Active time per hour of verified segments", timedVerified ? clock(3600 * timedSeconds / timedVerified) : "—",
-      timedVerified ? clock(timedSeconds) + " active / " + clock(timedVerified) + " verified across " + timed.length + " files" : "No verified audio with measurable autosave time"));
+    card("Productivity", timedSeconds ? clock(3600 * timedVerified / timedSeconds) + " per active hour" : "—",
+      timedSeconds ? clock(timedVerified) + " of verified segments in " + clock(timedSeconds) + " of active work" : "No verified audio with measurable autosave time"));
   $("library-overview").hidden = false;
 }
 
