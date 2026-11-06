@@ -72,8 +72,6 @@
           <dl id="library-stats" class="library-stats mb-2"></dl>
           <p class="small text-muted mb-3">WER and word difference compare the original IndicConformer drafts with fully verified verbatim transcripts. Word counts ignore punctuation and annotation markers.</p>
         </section>
-        <div id="library-summary" class="library-summary mb-2" role="status">Loading…</div>
-        <p class="small text-muted mb-3">ASR history records tasks seeded with IndicConformer. Verified words are words in cues marked verified by an annotator.</p>
         <form id="library-filters" class="library-tools" hidden>
           <label>ASR history
             <select id="library-asr" class="form-select form-select-sm">
@@ -103,13 +101,14 @@
           <label class="align-self-center"><input id="library-flagged" type="checkbox" class="form-check-input me-1" />Flagged only</label>
           <button class="btn btn-sm btn-outline-secondary" type="reset">Clear filters</button>
         </form>
+        <div id="library-summary" class="library-summary mb-2" role="status">Loading…</div>
         <div id="library-error" class="alert alert-danger" hidden></div>
         <table id="library-table" class="library-table table table-sm mb-0">
           <thead>
             <tr>
-              <th>#</th><th>Video</th><th>Channel</th><th>Style</th><th>Length</th><th>Speakers</th>
-              <th>ASR history</th><th>Transcript cues</th><th>Words</th><th>Verified words</th>
-              <th>Verified cues</th><th>Flagged</th><th>Status</th><th>ASR WER</th><th>Words Δ</th>
+              <th>#</th><th>Video</th><th>Status</th><th>Channel</th><th>Style</th><th>Length</th><th>Speakers</th>
+              <th>ASR history</th><th>Transcribed segments</th><th>Words</th><th>Verified words</th>
+              <th>Verified segments</th><th>Flagged</th><th>ASR WER</th><th>Words Δ</th>
             </tr>
           </thead>
           <tbody id="library-rows"></tbody>

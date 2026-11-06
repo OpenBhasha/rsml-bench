@@ -59,7 +59,9 @@ function renderRow({ v, i, s, asr, status }) {
       el("i", { class: "bi bi-box-arrow-up-right", "aria-hidden": "true" })));
   }
   return el("tr", {},
-    numericCell(i + 1), title, el("td", { text: v.channel }), el("td", { text: v.style || "—" }),
+    numericCell(i + 1), title,
+    el("td", {}, el("span", { class: "lib-status " + status.key, text: status.label })),
+    el("td", { text: v.channel }), el("td", { text: v.style || "—" }),
     numericCell(v.duration_s, clock(v.duration_s)), numericCell(v.speakers_detected),
     el("td", { text: asr === "yes" ? "IndicConformer" : "Unrecorded" }),
     numericCell(s?.transcribed, s ? format(s.transcribed) + " / " + format(s.segments) : null),
@@ -69,7 +71,6 @@ function renderRow({ v, i, s, asr, status }) {
       s && el("div", { class: "lib-bar", "aria-hidden": "true" },
         el("span", { style: "width:" + Math.round(100 * fraction) + "%" }))),
     numericCell(s?.flagged),
-    el("td", {}, el("span", { class: "lib-status " + status.key, text: status.label })),
     comparison ? numericCell(comparison.errors / comparison.referenceWords, percent(comparison.errors, comparison.referenceWords)) : numericCell(null),
     comparison ? numericCell(comparison.referenceWords - comparison.draftWords, signed(comparison.referenceWords - comparison.draftWords)) : numericCell(null));
 }
@@ -84,31 +85,21 @@ function renderOverview(rows) {
   const compared = rows.flatMap(({ v }) => v.comparison ? [v.comparison] : []);
   const sumComparison = (key) => compared.reduce((sum, result) => sum + result[key], 0);
   const ref = sumComparison("referenceWords");
-  const draft = sumComparison("draftWords");
   const errors = sumComparison("errors");
   const card = (label, value, detail) => el("div", { class: "library-stat" },
     el("dt", { text: label }), el("dd", { text: value }, el("small", { text: detail })));
   $("library-stats").replaceChildren(
-    card("Fully verified audio / raw audio", clock(doneRaw) + " / " + clock(raw), percent(doneRaw, raw) + " · " + done.length + " of " + rows.length + " files complete"),
-    card("Verified cues / raw audio", clock(verified) + " / " + clock(raw), percent(verified, raw) + " of total audio covered"),
-    card("Verified cues / segmented audio", clock(verified) + " / " + clock(segmented), percent(verified, segmented) + " · overlaps counted once"),
-    card("Verified words / all words", format(sumProgress("verifiedWords")) + " / " + format(sumProgress("words")), "Words in human-verified cues"),
-    card("ASR word error rate", percent(errors, ref), ref ? format(errors) + " edits across " + compared.length + " comparable files" : "No comparable files"),
-    card("Verbatim − ASR words", ref ? signed(ref - draft) : "—", ref ? format(ref) + " verbatim · " + format(draft) + " ASR" : "No comparable files"));
+    card("Verified raw duration / total raw duration", clock(doneRaw) + " / " + clock(raw), percent(doneRaw, raw) + " · " + done.length + " of " + rows.length + " files complete"),
+    card("Verified segment duration / total segment duration", clock(verified) + " / " + clock(segmented), percent(verified, segmented) + " · overlaps counted once"),
+    card("Verified words / total words", format(sumProgress("verifiedWords")) + " / " + format(sumProgress("words")), "Words in human-verified segments"),
+    card("WER", percent(errors, ref), ref ? format(errors) + " edits across " + compared.length + " comparable files" : "No comparable files"));
   $("library-overview").hidden = false;
 }
 
 function updateSummary(rows, total) {
-  const count = (predicate) => rows.filter(predicate).length;
-  const sum = (key) => format(rows.reduce((n, r) => n + (r.s?.[key] ?? 0), 0));
-  const missing = count((r) => !r.s);
+  const missing = rows.filter((r) => !r.s).length;
   $("library-summary").textContent =
-    format(rows.length) + " of " + format(total) + " tasks · " +
-    format(count((r) => r.asr === "yes")) + " with recorded ASR · " +
-    format(count((r) => r.s?.transcribed > 0)) + " with transcript text · " +
-    sum("words") + " words · " + sum("verifiedWords") + " words in verified cues · " +
-    sum("verified") + " of " + sum("segments") + " cues verified · " +
-    format(count((r) => r.status.key === "done")) + " tasks fully verified" +
+    format(rows.length) + " of " + format(total) + " tasks" +
     (missing ? " · " + format(missing) + " unavailable" : "");
 }
 
