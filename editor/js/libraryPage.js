@@ -52,6 +52,8 @@ const numericCell = (n, label) => el("td", {
 function renderRow({ v, i, s, asr, status, seconds }) {
   const fraction = s?.segments ? s.verified / s.segments : 0;
   const comparison = v.comparison;
+  const segmentComparison = v.segmentComparison;
+  const segmentWer = segmentComparison?.segmentWer;
   const title = el("td", { class: "lib-title", "data-search": v.title + " " + v.id },
     el("a", { href: editorLink(v.id), text: v.title }));
   if (/^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(v.url || "")) {
@@ -73,7 +75,10 @@ function renderRow({ v, i, s, asr, status, seconds }) {
     numericCell(s?.flagged),
     comparison ? numericCell(comparison.errors / comparison.referenceWords, percent(comparison.errors, comparison.referenceWords)) : numericCell(null),
     comparison ? numericCell(comparison.referenceWords - comparison.draftWords, signed(comparison.referenceWords - comparison.draftWords)) : numericCell(null),
-    numericCell(seconds, seconds == null ? null : clock(seconds)));
+    numericCell(seconds, seconds == null ? null : clock(seconds)),
+    el("td", { class: "lib-num", "data-order": segmentWer ?? -1,
+      title: segmentWer == null ? "No comparable verified segments" : segmentComparison.comparedSegments + " verified segments",
+      text: segmentWer == null ? "—" : percent(segmentWer, 1) }));
 }
 
 function card(label, value, tone, icon, definition) {

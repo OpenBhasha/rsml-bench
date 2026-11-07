@@ -148,24 +148,55 @@ export function transcriptStats(text, duration) {
 }
 
 function compareDraft(reference, draft) {
+  const segments = parseSRT(reference).cues.sort((a, b) => a.start - b.start);
+  const referenceTokens = segments.map((segment) => tokens(segment.text));
+  const ref = referenceTokens.flat();
   const words = (text) => parseSRT(text).cues.sort((a, b) => a.start - b.start).flatMap((cue) => tokens(cue.text));
-  const ref = words(reference);
   // The original upload left a blank line between cue metadata and the ASR text.
   // Keep the separator when the next line is another cue number.
   const asr = words(draft.replace(/^(primary=[^\r\n]*)\r?\n[ \t]*\r?\n(?!(?:\d+[ \t]*\r?$))(?=[^\r\n])/gm, "$1\n"));
   if (!ref.length || !asr.length) return null;
-  // Levenshtein distance with two rows, keeping memory linear in the draft length.
+  // Retain edit directions to assign errors to the current segment boundaries.
+  const width = asr.length + 1;
+  const directions = new Uint8Array((ref.length + 1) * width);
   let previous = Array.from({ length: asr.length + 1 }, (_, i) => i);
   let current = new Uint32Array(asr.length + 1);
   for (let i = 1; i <= ref.length; i++) {
     current[0] = i;
     for (let j = 1; j <= asr.length; j++) {
-      current[j] = Math.min(previous[j] + 1, current[j - 1] + 1,
-        previous[j - 1] + Number(ref[i - 1] !== asr[j - 1]));
+      const diagonal = previous[j - 1] + Number(ref[i - 1] !== asr[j - 1]);
+      const deletion = previous[j] + 1;
+      const insertion = current[j - 1] + 1;
+      current[j] = Math.min(diagonal, deletion, insertion);
+      directions[i * width + j] = current[j] === diagonal ? 0 : current[j] === deletion ? 1 : 2;
     }
     [previous, current] = [current, previous];
   }
-  return { errors: previous[asr.length], referenceWords: ref.length, draftWords: asr.length };
+  const tokenSegments = referenceTokens.flatMap((tokens, index) => tokens.map(() => index));
+  const segmentErrors = new Uint32Array(segments.length);
+  let i = ref.length, j = asr.length;
+  while (i || j) {
+    const direction = !i ? 2 : !j ? 1 : directions[i * width + j];
+    const segment = tokenSegments[Math.max(0, i - 1)];
+    if (direction === 2) {
+      segmentErrors[segment]++;
+      j--;
+    } else if (direction === 1) {
+      segmentErrors[segment]++;
+      i--;
+    } else {
+      segmentErrors[segment] += Number(ref[i - 1] !== asr[j - 1]);
+      i--;
+      j--;
+    }
+  }
+  const rates = segments.flatMap((segment, index) =>
+    segment.meta?.verified && referenceTokens[index].length ? [segmentErrors[index] / referenceTokens[index].length] : []);
+  return {
+    errors: previous[asr.length], referenceWords: ref.length, draftWords: asr.length,
+    segmentWer: rates.length ? rates.reduce((sum, rate) => sum + rate, 0) / rates.length : null,
+    comparedSegments: rates.length,
+  };
 }
 
 export async function fetchIndex({ withStats = false } = {}) {
@@ -174,14 +205,16 @@ export async function fetchIndex({ withStats = false } = {}) {
   return Promise.all(videos.map(async (video) => {
     let progress = null;
     let comparison = null;
+    let segmentComparison = null;
     try {
       const transcript = await fetchRsml(video.id);
       progress = transcriptStats(transcript, video.duration_s);
-      if (progress.verified && progress.verified === progress.segments && draftIds.has(video.id)) {
-        comparison = compareDraft(transcript, await hf.fetchAsrDraft(video.id));
+      if (progress.verified && draftIds.has(video.id)) {
+        segmentComparison = compareDraft(transcript, await hf.fetchAsrDraft(video.id));
+        if (progress.verified === progress.segments) comparison = segmentComparison;
       }
     } catch { /* the transcript or original draft is unavailable */ }
-    return { ...video, progress, comparison };
+    return { ...video, progress, comparison, segmentComparison };
   }));
 }
 
