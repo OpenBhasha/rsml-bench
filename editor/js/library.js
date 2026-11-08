@@ -92,21 +92,13 @@ function coveredSeconds(sorted, limit) {
   return seconds;
 }
 
-function longestVerifiedRun(segments, limit) {
-  let longest = null;
-  let run = null;
+function verifiedPrefix(segments, limit) {
+  let end = 0;
   for (const segment of segments) {
-    if (!segment.meta?.verified) {
-      run = null;
-      continue;
-    }
-    const start = Math.max(0, segment.start);
-    const end = Math.min(limit, segment.end);
-    if (end <= start) continue;
-    run = { start: run?.start ?? start, end: Math.max(run?.end ?? end, end) };
-    if (!longest || run.end - run.start > longest.end - longest.start) longest = run;
+    if (!segment.meta?.verified) break;
+    end = Math.max(end, Math.min(limit, segment.end));
   }
-  return longest;
+  return { start: 0, end };
 }
 
 function summarizeCues(cues, duration) {
@@ -124,22 +116,14 @@ function summarizeCues(cues, duration) {
   const limit = duration > 0 ? duration : Infinity;
   const segments = [...cues].sort((a, b) => a.start - b.start);
   const verified = segments.filter((segment) => segment.meta?.verified);
-  let verifiedRawSeconds = 0;
-  if (duration > 0 && verified.length) {
-    if (verified.length === segments.length) {
-      verifiedRawSeconds = duration;
-    } else {
-      const run = longestVerifiedRun(segments, limit);
-      // Take the union so segments inside the run are counted only once.
-      const intervals = run ? [...verified, run].sort((a, b) => a.start - b.start) : verified;
-      verifiedRawSeconds = coveredSeconds(intervals, limit);
-    }
-  }
+  const prefix = verifiedPrefix(segments, limit);
+  // Include silence in the verified prefix, then later verified segments once.
+  const rawIntervals = [...verified, prefix].sort((a, b) => a.start - b.start);
   return {
     ...stats,
     segmentSeconds: coveredSeconds(segments, limit),
     verifiedSeconds: coveredSeconds(verified, limit),
-    verifiedRawSeconds,
+    verifiedRawSeconds: coveredSeconds(rawIntervals, limit),
   };
 }
 

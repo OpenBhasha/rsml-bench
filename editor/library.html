@@ -136,6 +136,7 @@
                   <th>#</th><th>Video</th><th>Status</th><th>Channel</th><th>Style</th><th>Length</th><th>Speakers</th>
                   <th>ASR history</th><th>Transcribed segments</th><th>Words</th><th>Verified words</th>
                   <th>Verified segments</th><th>Flagged</th><th>ASR WER</th><th>Words Δ</th><th>Active time</th><th title="Mean WER across verified segments, using word alignment against the original ASR draft">Avg segment WER</th>
+                  <th title="Verified segment duration, excluding gaps between segments">Finished segments</th><th title="Time from the start through consecutive verified segments, plus later verified segment durations">Finished raw</th><th title="Verified segment audio per active hour">Productivity</th>
                 </tr>
               </thead>
               <tbody id="library-rows"></tbody>
@@ -149,6 +150,6 @@
     <script src="https://cdn.datatables.net/2.3.5/js/dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/2.3.5/js/dataTables.bootstrap5.min.js"></script>
     <script src="config.js"></script>
-    <script type="module" src="js/libraryPage.js?v=segment-wer"></script>
+    <script type="module" src="js/libraryPage.js?v=row-duration"></script>
   </body>
 </html>

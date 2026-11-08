@@ -54,6 +54,7 @@ function renderRow({ v, i, s, asr, status, seconds }) {
   const comparison = v.comparison;
   const segmentComparison = v.segmentComparison;
   const segmentWer = segmentComparison?.segmentWer;
+  const productivity = seconds > 0 && s ? 3600 * s.verifiedSeconds / seconds : null;
   const title = el("td", { class: "lib-title", "data-search": v.title + " " + v.id },
     el("a", { href: editorLink(v.id), text: v.title }));
   if (/^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(v.url || "")) {
@@ -78,7 +79,10 @@ function renderRow({ v, i, s, asr, status, seconds }) {
     numericCell(seconds, seconds == null ? null : clock(seconds)),
     el("td", { class: "lib-num", "data-order": segmentWer ?? -1,
       title: segmentWer == null ? "No comparable verified segments" : segmentComparison.comparedSegments + " verified segments",
-      text: segmentWer == null ? "—" : percent(segmentWer, 1) }));
+      text: segmentWer == null ? "—" : percent(segmentWer, 1) }),
+    numericCell(s?.verifiedSeconds, s ? clock(s.verifiedSeconds) : null),
+    numericCell(s?.verifiedRawSeconds, s ? clock(s.verifiedRawSeconds) : null),
+    numericCell(productivity, productivity == null ? null : clock(productivity) + " / hr"));
 }
 
 function card(label, value, tone, icon, definition) {
@@ -126,7 +130,7 @@ function renderOverview(rows) {
   const timedVerified = timed.reduce((sum, row) => sum + row.s.verifiedSeconds, 0);
   $("library-stats").replaceChildren(
     card("Raw audio", clock(verifiedRaw) + " / " + clock(raw), "blue", "soundwave",
-      "Verified time / total. Unfinished files include silence in the longest verified run."),
+      "Verified time / total. Includes silence from the file start through consecutive verified segments, plus later verified segment durations."),
     card("Segment audio", clock(verified) + " / " + clock(segmented), "teal", "bar-chart-steps",
       "Verified segment time / total segment time. Overlaps count once."),
     card("Verified words", format(sumProgress("verifiedWords")) + " / " + format(sumProgress("words")), "green", "fonts",
