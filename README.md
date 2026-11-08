@@ -37,9 +37,14 @@ with no token and no Hugging Face access needed.
 data/<lang>/<id>.wav      16 kHz mono audio (on the Hub, not in this repository)
 data/<lang>/<id>.rsml     the transcript for that video (on the Hub, not in this repository)
 data/<lang>/metadata.csv  every field for each video (on the Hub, and telugu_cc_final.csv here)
+data/<lang>/library.json  stored library statistics, updated with transcript saves
 ```
 
 `data/` is not in this repository: the audio is too large for git. `publish_hf.py` uploads it.
+
+After changing transcripts outside the editor, rebuild the library statistics with
+`python3 refresh_library_stats.py --publish` (requires Node.js and Hugging Face write access).
+The local server stores its statistics in `data/<lang>/library-stats.json` and refreshes changed files.
 
 ## Make the dataset
 

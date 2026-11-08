@@ -3,7 +3,9 @@
 // Hub. Each autosave commits the video's .rsml to that repo, so the Hub copy is the only copy.
 // There is no server: the browser talks to huggingface.co directly.
 
-const { dataset, lang } = window.RSML_BENCH;
+import { nextActivity, transcriptStats, videoStats } from "./libraryStats.js";
+
+const { dataset, lang, asrDraftIds } = window.RSML_BENCH;
 const HUB = "https://huggingface.co";
 const FILES = `${HUB}/datasets/${dataset}/resolve/main/data/${lang}`;
 const API = `${HUB}/api/datasets/${dataset}`;
@@ -71,37 +73,27 @@ export async function fetchRsml(id) {
   return text;
 }
 
+const drafts = new Map();
 export async function fetchAsrDraft(id) {
+  if (drafts.has(id)) return drafts.get(id);
   const revision = window.RSML_BENCH.asrDraftRevision;
   const url = `${HUB}/datasets/${dataset}/resolve/${revision}/data/${lang}/${encodeURIComponent(id)}.rsml`;
   const r = await fetch(url, { headers: authHeaders() });
   if (!r.ok) throw readError(`ASR draft for ${id}`, r);
-  return r.text();
+  const text = await r.text();
+  drafts.set(id, text);
+  return text;
 }
 
-export async function fetchActivity() {
-  const endpoint = new URL(`${API}/commits/main`);
-  let page = new URL("?limit=100", endpoint);
-  const byAudio = new Map();
-  while (page) {
-    const r = await fetch(page, { cache: "no-store", headers: authHeaders() });
-    if (!r.ok) throw readError("Autosave history", r);
-    for (const commit of await r.json()) {
-      const match = /^([\w-]+): (\d+) segments, (\d+) verified$/.exec(commit.title);
-      const time = Date.parse(commit.date);
-      if (!match || !Number.isFinite(time)) continue;
-      const [, id, segments, verified] = match;
-      if (!byAudio.has(id)) byAudio.set(id, []);
-      byAudio.get(id).push({ time, done: Number(segments) > 0 && segments === verified });
-    }
-    const next = /<([^>]+)>;\s*rel="next"/.exec(r.headers.get("Link") || "");
-    page = next ? new URL(next[1], endpoint) : null;
-    if (page && (page.origin !== endpoint.origin || page.pathname !== endpoint.pathname)) {
-      throw new Error("Invalid autosave history page");
-    }
+export async function fetchStatsIndex(revision = "main") {
+  const url = `${HUB}/datasets/${dataset}/resolve/${revision}/data/${lang}/library.json`;
+  const r = await fetch(url, { cache: "no-store", headers: authHeaders() });
+  if (!r.ok) throw readError("library.json", r);
+  const index = await r.json();
+  if (index.schemaVersion !== 1 || index.dataset !== dataset || index.lang !== lang || !Array.isArray(index.videos)) {
+    throw new Error("Invalid library statistics index");
   }
-  for (const commits of byAudio.values()) commits.sort((a, b) => a.time - b.time);
-  return byAudio;
+  return index;
 }
 
 // [{ id, title, channel, url, duration_s, speakers_detected, speaker_share_pct, ... }]
@@ -192,17 +184,22 @@ async function commitWithRetry(job) {
       lastCommitAt = Date.now();
       return;
     } catch (err) {
+      if (err.retryable && attempt < 4) {
+        await nap(250 * attempt);
+        continue;
+      }
       if (err.status !== 429 || attempt >= 4) throw err;
       await nap(RETRY_MS);
     }
   }
 }
 
-function commitBody(job) {
+function commitBody(job, index, parent) {
   const { segments, verified } = progressOf(job.text);
   const lines = [
-    { key: "header", value: { summary: `${job.id}: ${segments} segments, ${verified} verified`, description: "Autosaved from RSML Bench." } },
+    { key: "header", value: { summary: `${job.id}: ${segments} segments, ${verified} verified`, description: "Autosaved from RSML Bench.", parentCommit: parent } },
     { key: "file", value: { path: `data/${lang}/${job.id}.rsml`, encoding: "base64", content: toBase64(new TextEncoder().encode(job.text)) } },
+    { key: "file", value: { path: `data/${lang}/library.json`, encoding: "base64", content: toBase64(new TextEncoder().encode(JSON.stringify(index))) } },
   ];
   return lines.map((l) => JSON.stringify(l)).join("\n") + "\n";
 }
@@ -210,7 +207,30 @@ function commitBody(job) {
 async function commit(job, { keepalive = false } = {}) {
   const token = getToken();
   if (!token) throw httpError("Not signed in to Hugging Face. Add a token on the library page.", 401);
-  const body = commitBody(job);
+  const repo = await fetch(API, { cache: "no-store", headers: authHeaders() });
+  if (!repo.ok) throw readError("Dataset revision", repo);
+  const { sha } = await repo.json();
+  const index = await fetchStatsIndex(sha);
+  const position = index.videos.findIndex((video) => video.id === job.id);
+  if (position < 0) throw new Error("Audio missing from the library index");
+  const current = await fetch(`${HUB}/datasets/${dataset}/resolve/${sha}/data/${lang}/${job.id}.rsml`, { headers: authHeaders() });
+  if (!current.ok) throw readError(job.id, current);
+  const remoteText = await current.text();
+  if (remoteText === job.text) {
+    known.set(job.id, job.text);
+    return;
+  }
+  if (remoteText !== known.get(job.id)) {
+    throw httpError("Transcript changed on Hugging Face. Reload and reconcile the local recovery copy before syncing.", 409);
+  }
+  const video = index.videos[position];
+  const draft = asrDraftIds.includes(job.id) ? await fetchAsrDraft(job.id) : null;
+  const time = Date.now();
+  const progress = transcriptStats(job.text, video.duration_s);
+  const activity = nextActivity(video.activity, time, progress);
+  index.videos[position] = { ...video, ...videoStats(video, job.text, draft, activity) };
+  index.generatedAt = new Date(time).toISOString();
+  const body = commitBody(job, index, sha);
   const r = await fetch(`${API}/commit/main`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/x-ndjson" },
@@ -219,6 +239,9 @@ async function commit(job, { keepalive = false } = {}) {
   });
   if (!r.ok) {
     const detail = (await r.text().catch(() => "")).slice(0, 200);
+    if (r.status === 409) {
+      throw Object.assign(httpError("Library changed while saving. Sync again to retry.", 409), { retryable: true });
+    }
     throw httpError(`Hugging Face did not save ${job.id} (HTTP ${r.status}${detail ? `: ${detail}` : ""})`, r.status);
   }
   known.set(job.id, job.text);

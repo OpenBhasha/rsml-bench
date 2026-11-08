@@ -34,6 +34,7 @@ import sys
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import Lock
 from urllib.parse import unquote, urlsplit
 
 HERE = Path(__file__).resolve().parent
@@ -42,8 +43,28 @@ FIELDS = ("id", "title", "channel", "url", "upload_date", "duration_s", "batch",
 NOT_FOUND = str(HERE / ".no-such-file")
 LIB_FILE = re.compile(r"/library/(audio|rsml)/([\w-]+)\.(wav|rsml)")
 SAVE_PATH = re.compile(r"/library/save/([\w-]+)")
+STATS_PATH = re.compile(r"/library/stats/([\w-]+)")
+STATS_LOCK = Lock()
 META_LINE = re.compile(r"^primary=[^|]*\|verified=([01])\|flagged=([01])\|note=", re.M)
 MAX_BODY = 10_000_000
+
+
+def source_key(path: Path) -> str | None:
+    try:
+        stat = path.stat()
+        return f"{stat.st_mtime_ns}:{stat.st_size}"
+    except OSError:
+        return None
+
+
+def read_stats(directory: Path) -> dict:
+    try:
+        cache = json.loads((directory / "library-stats.json").read_text(encoding="utf-8"))
+        if cache.get("schemaVersion") == 1 and isinstance(cache.get("videos"), dict):
+            return cache
+    except (OSError, ValueError, AttributeError):
+        pass
+    return {"schemaVersion": 1, "videos": {}}
 
 
 def load_videos(csv_path: Path, audio_dir: Path, rsml_dir: Path) -> list[dict]:
@@ -124,14 +145,27 @@ class Handler(SimpleHTTPRequestHandler):
         if not self._allowed():
             return
         if urlsplit(self.path).path == "/library/index.json":
-            self._json([{**v, "progress": summarize(self.rsml_dir / f"{v['id']}.rsml")} for v in self.videos])
+            cache = read_stats(self.rsml_dir)["videos"]
+            rows = []
+            for video in self.videos:
+                path = self.rsml_dir / f"{video['id']}.rsml"
+                key = source_key(path)
+                saved = cache.get(video["id"], {})
+                progress = saved.get("progress") if key and key == saved.get("sourceKey") else summarize(path)
+                rows.append({**video, "progress": progress, "sourceKey": key})
+            self._json(rows)
+            return
+        if urlsplit(self.path).path == "/library/stats.json":
+            self._json(read_stats(self.rsml_dir))
             return
         super().do_GET()
 
     def do_POST(self):
         if not self._allowed(write=True):
             return
-        m = SAVE_PATH.fullmatch(unquote(urlsplit(self.path).path))
+        request_path = unquote(urlsplit(self.path).path)
+        stats_match = STATS_PATH.fullmatch(request_path)
+        m = stats_match or SAVE_PATH.fullmatch(request_path)
         if not m or m[1] not in self.ids:
             return self.send_error(404)
         n = int(self.headers.get("Content-Length") or 0)
@@ -141,6 +175,21 @@ class Handler(SimpleHTTPRequestHandler):
             text = self.rfile.read(n).decode("utf-8")
         except UnicodeDecodeError:
             return self.send_error(400, "not UTF-8")
+        if stats_match:
+            try:
+                saved = json.loads(text)
+                if not isinstance(saved, dict) or not isinstance(saved.get("progress"), dict):
+                    return self.send_error(400, "invalid statistics")
+                if saved.get("sourceKey") != source_key(self.rsml_dir / f"{m[1]}.rsml"):
+                    return self.send_error(409, "transcript changed")
+                with STATS_LOCK:
+                    cache = read_stats(self.rsml_dir)
+                    cache["videos"][m[1]] = saved
+                    write_rsml(self.rsml_dir / "library-stats.json", json.dumps(cache))
+            except ValueError:
+                return self.send_error(400, "invalid statistics")
+            self._json({"ok": True})
+            return
         if "-->" not in text or "# BhashaCheck config" not in text:   # what the app's export always writes
             return self.send_error(400, "not an RSML file")
         changed = write_rsml(self.rsml_dir / f"{m[1]}.rsml", text)

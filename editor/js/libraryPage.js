@@ -1,6 +1,6 @@
 // library.html: every video in the library, with progress read from its RSML file.
 
-import { activeSeconds, fetchActivity, fetchIndex, isLocal, getToken, setToken, whoami, lastActiveId } from "./library.js";
+import { fetchIndex, isLocal, getToken, setToken, whoami, lastActiveId } from "./library.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -74,7 +74,6 @@ function renderRow({ v, i, s, asr, status, seconds }) {
       s && el("div", { class: "lib-bar", "aria-hidden": "true" },
         el("span", { style: "width:" + Math.round(100 * fraction) + "%" }))),
     numericCell(s?.flagged),
-    comparison ? numericCell(comparison.errors / comparison.referenceWords, percent(comparison.errors, comparison.referenceWords)) : numericCell(null),
     comparison ? numericCell(comparison.referenceWords - comparison.draftWords, signed(comparison.referenceWords - comparison.draftWords)) : numericCell(null),
     numericCell(seconds, seconds == null ? null : clock(seconds)),
     el("td", { class: "lib-num", "data-order": segmentWer ?? -1,
@@ -101,14 +100,14 @@ function renderTaskProgress(rows) {
   const notStarted = countStatus("new");
   const inProgress = countStatus("progress");
   const unavailable = countStatus("unknown");
-  const flagged = rows.filter((row) => row.s?.flagged > 0).length;
+  const flagged = rows.reduce((sum, row) => sum + (row.s?.flagged || 0), 0);
   const cards = [
     card("Total tasks", format(rows.length), "blue", "collection", "All audio files in the library."),
     card("Pending tasks", format(notStarted + inProgress), "amber", "hourglass-split", "Tasks in progress or awaiting verification."),
     card("Verified tasks", format(countStatus("done")), "green", "check-circle", "Tasks with every segment verified."),
     card("In progress", format(inProgress), "teal", "play-circle", "Tasks with some segments verified."),
     card("Not started", format(notStarted), "slate", "circle", "Tasks with zero verified segments."),
-    card("Flagged tasks", format(flagged), "rose", "flag", "Tasks with at least one flagged segment."),
+    card("Flags", format(flagged), "rose", "flag", "Total flagged segments."),
   ];
   if (unavailable) cards.push(card("Unavailable", format(unavailable), "slate", "cloud-slash", "Tasks whose transcripts could not be loaded."));
   $("library-task-stats").replaceChildren(...cards);
@@ -121,22 +120,21 @@ function renderOverview(rows) {
   const verifiedRaw = sumProgress("verifiedRawSeconds");
   const verified = sumProgress("verifiedSeconds");
   const segmented = sumProgress("segmentSeconds");
-  const compared = rows.flatMap(({ v }) => v.comparison ? [v.comparison] : []);
-  const sumComparison = (key) => compared.reduce((sum, result) => sum + result[key], 0);
-  const ref = sumComparison("referenceWords");
-  const errors = sumComparison("errors");
+  const compared = rows.flatMap(({ v }) => v.segmentComparison?.comparedSegments ? [v.segmentComparison] : []);
+  const comparedSegments = compared.reduce((sum, result) => sum + result.comparedSegments, 0);
+  const segmentWerSum = compared.reduce((sum, result) => sum + result.segmentWer * result.comparedSegments, 0);
   const timed = rows.filter((row) => row.seconds != null && row.s?.verifiedSeconds > 0);
   const timedSeconds = timed.reduce((sum, row) => sum + row.seconds, 0);
   const timedVerified = timed.reduce((sum, row) => sum + row.s.verifiedSeconds, 0);
   $("library-stats").replaceChildren(
-    card("Raw audio", clock(verifiedRaw) + " / " + clock(raw), "blue", "soundwave",
+    card("Overall raw duration", clock(verifiedRaw) + " / " + clock(raw), "blue", "soundwave",
       "Verified time / total. Includes silence from the file start through consecutive verified segments, plus later verified segment durations."),
-    card("Segment audio", clock(verified) + " / " + clock(segmented), "teal", "bar-chart-steps",
+    card("Overall segment duration", clock(verified) + " / " + clock(segmented), "teal", "bar-chart-steps",
       "Verified segment time / total segment time. Overlaps count once."),
     card("Verified words", format(sumProgress("verifiedWords")) + " / " + format(sumProgress("words")), "green", "fonts",
       "Words in verified segments / all transcript words."),
-    card("WER", percent(errors, ref), "rose", "spellcheck",
-      "ASR word error rate against fully verified verbatim transcripts."),
+    card("Avg. Segment WER", percent(segmentWerSum, comparedSegments), "rose", "spellcheck",
+      "Mean WER across all comparable verified segments. Each segment has equal weight."),
     card("Productivity", timedSeconds ? clock(3600 * timedVerified / timedSeconds) + " / hr" : "—", "amber", "speedometer2",
       "Verified segment audio per active hour. Autosave gaps over five minutes are excluded."));
   $("library-overview").hidden = false;
@@ -149,10 +147,10 @@ function updateSummary(rows, total) {
     (missing ? " · " + format(missing) + " unavailable" : "");
 }
 
-function setupTable(videos, activity) {
+function setupTable(videos) {
   const rows = videos.map(viewOf);
   for (const row of rows) {
-    row.seconds = activeSeconds(activity.get(row.v.id), row.status.key === "done");
+    row.seconds = row.v.seconds ?? null;
   }
   const lastIndex = rows.findIndex((row) => row.v.id === lastActiveId());
   const unfinished = (row) => row && ["new", "progress"].includes(row.status.key);
@@ -262,15 +260,9 @@ function wireToken() {
 
 async function boot() {
   wireToken();
-  let videos, activity;
+  let videos;
   try {
-    [videos, activity] = await Promise.all([
-      fetchIndex({ withStats: true }),
-      fetchActivity().catch((err) => {
-        console.warn("Could not load autosave history", err);
-        return new Map();
-      }),
-    ]);
+    videos = await fetchIndex({ withStats: true });
   } catch (err) {
     const box = $("library-error");
     const denied = err.status === 401 || err.status === 403;
@@ -283,7 +275,7 @@ async function boot() {
     $("library-summary").textContent = "";
     return;
   }
-  setupTable(videos, activity);
+  setupTable(videos);
 }
 
 boot();

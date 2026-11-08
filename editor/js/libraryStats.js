@@ -1,0 +1,168 @@
+import { parseSRT } from "./srt.js";
+
+function matchingClose(text, start, open, close) {
+  let depth = 0;
+  for (let i = start; i < text.length; i++) {
+    if (text[i] === open) depth++;
+    if (text[i] === close && --depth === 0) return i;
+  }
+  return -1;
+}
+
+function verbatimText(text) {
+  const tags = /(?:!!?|\$\$?|#)[\w-]*\[|\[/g;
+  let output = "";
+  let offset = 0;
+  for (let match; (match = tags.exec(text)); ) {
+    const start = tags.lastIndex - 1;
+    const end = matchingClose(text, start, "[", "]");
+    if (end === -1 || text[end + 1] !== "(") continue;
+    const normalizedEnd = matchingClose(text, end + 1, "(", ")");
+    if (normalizedEnd === -1) continue;
+    output += text.slice(offset, match.index) + verbatimText(text.slice(start + 1, end));
+    offset = tags.lastIndex = normalizedEnd + 1;
+  }
+  return (output + text.slice(offset)).replace(/(?<![\p{L}\p{M}\p{N}])(?:@|&)\w[\w-]*/gu, " ");
+}
+
+function tokens(text) {
+  return verbatimText(text).normalize("NFC").toLowerCase().match(/[\p{L}\p{N}][\p{L}\p{M}\p{N}\u200c\u200d]*/gu) || [];
+}
+
+function coveredSeconds(sorted, limit) {
+  let end = 0, seconds = 0;
+  for (const cue of sorted) {
+    const next = Math.min(cue.end, limit);
+    const start = Math.max(end, cue.start);
+    if (next > start) {
+      seconds += next - start;
+      end = next;
+    }
+  }
+  return seconds;
+}
+
+function verifiedPrefix(segments, limit) {
+  let end = 0;
+  for (const segment of segments) {
+    if (!segment.meta?.verified) break;
+    end = Math.max(end, Math.min(limit, segment.end));
+  }
+  return { start: 0, end };
+}
+
+function summarizeCues(cues, duration) {
+  const stats = { segments: cues.length, transcribed: 0, verified: 0, flagged: 0, words: 0, verifiedWords: 0 };
+  for (const cue of cues) {
+    const words = tokens(cue.text).length;
+    stats.words += words;
+    stats.transcribed += Number(words > 0);
+    stats.flagged += Number(Boolean(cue.meta?.flagged));
+    if (cue.meta?.verified) {
+      stats.verified++;
+      stats.verifiedWords += words;
+    }
+  }
+  const limit = duration > 0 ? duration : Infinity;
+  const segments = [...cues].sort((a, b) => a.start - b.start);
+  const verified = segments.filter((segment) => segment.meta?.verified);
+  const prefix = verifiedPrefix(segments, limit);
+  // Include silence in the verified prefix, then later verified segments once.
+  const rawIntervals = [...verified, prefix].sort((a, b) => a.start - b.start);
+  return {
+    ...stats,
+    segmentSeconds: coveredSeconds(segments, limit),
+    verifiedSeconds: coveredSeconds(verified, limit),
+    verifiedRawSeconds: coveredSeconds(rawIntervals, limit),
+  };
+}
+
+export function transcriptStats(text, duration) {
+  return summarizeCues(parseSRT(text).cues, duration);
+}
+
+export function compareDraft(reference, draft) {
+  const segments = parseSRT(reference).cues.sort((a, b) => a.start - b.start);
+  const referenceTokens = segments.map((segment) => tokens(segment.text));
+  const ref = referenceTokens.flat();
+  const words = (text) => parseSRT(text).cues.sort((a, b) => a.start - b.start).flatMap((cue) => tokens(cue.text));
+  // The original upload left a blank line between cue metadata and the ASR text.
+  // Keep the separator when the next line is another cue number.
+  const asr = words(draft.replace(/^(primary=[^\r\n]*)\r?\n[ \t]*\r?\n(?!(?:\d+[ \t]*\r?$))(?=[^\r\n])/gm, "$1\n"));
+  if (!ref.length || !asr.length) return null;
+  // Retain edit directions to assign errors to the current segment boundaries.
+  const width = asr.length + 1;
+  const directions = new Uint8Array((ref.length + 1) * width);
+  let previous = Array.from({ length: asr.length + 1 }, (_, i) => i);
+  let current = new Uint32Array(asr.length + 1);
+  for (let i = 1; i <= ref.length; i++) {
+    current[0] = i;
+    for (let j = 1; j <= asr.length; j++) {
+      const diagonal = previous[j - 1] + Number(ref[i - 1] !== asr[j - 1]);
+      const deletion = previous[j] + 1;
+      const insertion = current[j - 1] + 1;
+      current[j] = Math.min(diagonal, deletion, insertion);
+      directions[i * width + j] = current[j] === diagonal ? 0 : current[j] === deletion ? 1 : 2;
+    }
+    [previous, current] = [current, previous];
+  }
+  const tokenSegments = referenceTokens.flatMap((tokens, index) => tokens.map(() => index));
+  const segmentErrors = new Uint32Array(segments.length);
+  let i = ref.length, j = asr.length;
+  while (i || j) {
+    const direction = !i ? 2 : !j ? 1 : directions[i * width + j];
+    const segment = tokenSegments[Math.max(0, i - 1)];
+    if (direction === 2) {
+      segmentErrors[segment]++;
+      j--;
+    } else if (direction === 1) {
+      segmentErrors[segment]++;
+      i--;
+    } else {
+      segmentErrors[segment] += Number(ref[i - 1] !== asr[j - 1]);
+      i--;
+      j--;
+    }
+  }
+  const rates = segments.flatMap((segment, index) =>
+    segment.meta?.verified && referenceTokens[index].length ? [segmentErrors[index] / referenceTokens[index].length] : []);
+  return {
+    errors: previous[asr.length], referenceWords: ref.length, draftWords: asr.length,
+    segmentWer: rates.length ? rates.reduce((sum, rate) => sum + rate, 0) / rates.length : null,
+    comparedSegments: rates.length,
+  };
+}
+
+export function activeSeconds(commits = [], completed = false) {
+  let seconds = 0;
+  for (let i = 1; i < commits.length; i++) {
+    if (completed && commits[i - 1].done) break;
+    const gap = (commits[i].time - commits[i - 1].time) / 1000;
+    if (gap > 0 && gap <= 300) seconds += gap;
+  }
+  return seconds || null;
+}
+
+export function videoStats(video, transcript, draft, activity) {
+  const progress = transcriptStats(transcript, video.duration_s);
+  const segmentComparison = progress.verified && draft != null ? compareDraft(transcript, draft) : null;
+  return {
+    progress,
+    segmentComparison,
+    comparison: progress.verified === progress.segments ? segmentComparison : null,
+    seconds: activity.seconds,
+    activity,
+  };
+}
+
+export function nextActivity(previous, time, progress) {
+  const activity = previous || { seconds: null, lastAt: null, completed: false };
+  const gap = activity.lastAt == null ? 0 : (time - activity.lastAt) / 1000;
+  const additional = !activity.completed && gap > 0 && gap <= 300 ? gap : 0;
+  return {
+    seconds: (activity.seconds || 0) + additional || null,
+    lastAt: time,
+    completed: progress.segments > 0 && progress.verified === progress.segments,
+  };
+}
+
