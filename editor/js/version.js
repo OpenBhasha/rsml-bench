@@ -14,4 +14,4 @@
 // vMAJOR.MINOR.PATCH. So don't touch the patch number yourself. MINOR and MAJOR
 // are yours: set them in this file in your push, and CI keeps your number (and
 // tags it) instead of bumping it again.
-export const BHASHACHECK_VERSION = "1.0.5";
+export const BHASHACHECK_VERSION = "1.0.6";

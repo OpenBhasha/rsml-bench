@@ -1042,6 +1042,20 @@ function handleShortcut(e) {
 
   if (!inShortcutScope(e)) return;
 
+  // Shifted brackets may arrive as braces; physical codes cover either form.
+  const seekLeft = e.code === "BracketLeft" || e.key === "[" || e.key === "{";
+  const seekRight = e.code === "BracketRight" || e.key === "]" || e.key === "}";
+  const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+  const seekModifier = isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
+  if (seekModifier && e.shiftKey && !e.altKey && !e.isComposing && (seekLeft || seekRight)) {
+    if (!wf.isReady()) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const direction = seekLeft ? -1 : 1;
+    wf.seekTo(Math.max(0, Math.min(wf.getDuration(), wf.getCurrentTime() + direction * 2)));
+    return;
+  }
+
   if (e.shiftKey && e.code === "Space" && !e.ctrlKey) {
     e.preventDefault();
     if (wf.isReady()) wf.playPause();
