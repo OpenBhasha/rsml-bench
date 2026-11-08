@@ -85,7 +85,7 @@ export function configToText(config) {
   if (config.versions) {
     lines.push("[versions]", kv("bhashacheck", config.versions.bhashacheck || ""), kv("rsml", config.versions.rsml || ""), "");
   }
-  lines.push("[settings]", kv("default_code_mixing_language", config.defaultCodeMixLanguage || ""), "", "[speakers]");
+  lines.push("[settings]", kv("default_code_mixing_language", config.defaultCodeMixLanguage || ""), kv("default_dialect", config.defaultDialect || ""), kv("default_accent", config.defaultAccent || ""), kv("default_domain", config.defaultDomain || ""), "", "[speakers]");
   for (const sp of config.speakers || []) {
     lines.push(kv(sp.id, [oneLine(sp.gender || "unspecified"), sp.language || ""].filter(Boolean).join(", ")));
   }
@@ -141,6 +141,13 @@ function sanitizeConfig(raw) {
     const lang = typeof raw.defaultCodeMixLanguage === "string" ? raw.defaultCodeMixLanguage.trim() : "";
     config.defaultCodeMixLanguage = lang || null;
     found = true;
+  }
+
+  for (const key of ["defaultDialect", "defaultAccent", "defaultDomain"]) {
+    if (key in raw) {
+      config[key] = typeof raw[key] === "string" ? raw[key].trim() || null : null;
+      found = true;
+    }
   }
 
   if (Array.isArray(raw.speakers)) {
@@ -216,6 +223,8 @@ export function textToConfig(text) {
     if (section === "settings") {
       // `default_language` is what files exported before the rename call it.
       if (key === "default_code_mixing_language" || key === "default_language") raw.defaultCodeMixLanguage = value;
+      const defaults = { default_dialect: "defaultDialect", default_accent: "defaultAccent", default_domain: "defaultDomain" };
+      if (Object.hasOwn(defaults, key)) raw[defaults[key]] = value;
     } else if (section === "speakers") {
       if (/^\d+$/.test(key)) {
         const comma = value.indexOf(",");

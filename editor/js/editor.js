@@ -608,7 +608,7 @@ function triggerPrefix(ctx) {
 // `$$`/`!!` cases in its _cmComplete source): scaffold-aware apply that
 // reuses an existing `[verbatim]()` right after the trigger if present (the
 // shape wrap-on-selection produces), otherwise inserts the full
-// `typeSegment[]()` scaffold with the caret dropped between the brackets.
+// `typeSegment[]()` scaffold with the caret inside the normalized slot.
 function bracketApply(typeSegment) {
   return (view, completion, from, to) => {
     const doc = view.state.doc;
@@ -618,12 +618,12 @@ function bracketApply(typeSegment) {
       const verbatim = scaf[1];
       view.dispatch({
         changes: { from, to, insert: typeSegment },
-        selection: { anchor: from + typeSegment.length + 1 + verbatim.length },
+        selection: { anchor: from + typeSegment.length + 1 + verbatim.length + (scaf[2] ? 2 : 0) },
         userEvent: "input.complete",
       });
     } else {
       const insert = `${typeSegment}[]()`;
-      view.dispatch({ changes: { from, to, insert }, selection: { anchor: from + typeSegment.length + 1 }, userEvent: "input.complete" });
+      view.dispatch({ changes: { from, to, insert }, selection: { anchor: from + typeSegment.length + 3 }, userEvent: "input.complete" });
     }
   };
 }
@@ -656,21 +656,28 @@ function patchCompletions(annotator) {
     const result = original(ctx);
     if (!result || !Array.isArray(result.options)) return result;
 
-    const code = getState().defaultCodeMixLanguage;
-    if (code) {
-      const i = result.options.findIndex((o) => o.label === `!${code}`);
-      if (i > 0) {
-        const [opt] = result.options.splice(i, 1);
-        result.options.unshift({ ...opt, boost: 99 });
-      }
-    }
-
     if (triggerPrefix(ctx) === "$") {
       const accents = getState().accents || {};
       const extra = Object.keys(accents)
         .sort()
         .map((id) => ({ label: `$${id}`, detail: accents[id] || null, apply: bracketApply(`$${id}`) }));
       result.options = result.options.concat(extra);
+    }
+
+    const state = getState();
+    const defaults = [
+      ["!", state.defaultCodeMixLanguage],
+      ["$$", state.defaultDialect],
+      ["$", state.defaultAccent],
+      ["!!", state.defaultDomain],
+    ];
+    for (const [prefix, code] of defaults) {
+      if (!code || triggerPrefix(ctx) !== prefix) continue;
+      const i = result.options.findIndex((option) => option.label === `${prefix}${code}`);
+      if (i >= 0) {
+        const [option] = result.options.splice(i, 1);
+        result.options.unshift({ ...option, boost: 99 });
+      }
     }
 
     return result;

@@ -103,23 +103,33 @@ function languageOptions(languages, selected, escapeHtml) {
 export function renderCodeMixDefault(root, deps) {
   const { getState, scheduleSave, escapeHtml } = deps;
   const state = getState();
-  const languages = getEffectiveLanguages(state);
-  root.innerHTML = `
-    <div>
-      <label class="form-label small mb-1" for="default-codemix-lang">Default code-mixing language</label>
-      <select id="default-codemix-lang" class="form-select form-select-sm">
+  // Read vocabulary on each interaction so edits in RSML tags appear immediately.
+  const fields = [
+    ["defaultCodeMixLanguage", "default-codemix-lang", "Default code-mixing language", "languages"],
+    ["defaultDialect", "default-dialect", "Default dialect", "dialects"],
+    ["defaultAccent", "default-accent", "Default accent", "accents"],
+    ["defaultDomain", "default-domain", "Default domain", "domains"],
+  ];
+  getLibraryDefaultLanguages();
+  root.innerHTML = fields.map(([key, id, label, category]) => {
+    const vocabulary = category === "accents" ? state.accents || {}
+      : state.rsmlConfig?.[category] || defaultsAnnotator.opts[category] || {};
+    return `<div class="mb-3">
+      <label class="form-label small mb-1" for="${id}">${label}</label>
+      <select id="${id}" class="form-select form-select-sm">
         <option value="">None</option>
-        ${languageOptions(languages, state.defaultCodeMixLanguage || "", escapeHtml)}
+        ${languageOptions(vocabulary, state[key] || "", escapeHtml)}
       </select>
     </div>`;
-  const sel = root.querySelector("#default-codemix-lang");
-  applySelect2(sel);
-  sel.onchange = () => {
-    getState().defaultCodeMixLanguage = sel.value || null;
-    scheduleSave();
-    // No refresh call needed here - editor.js's patchCodeMixBoost() reads
-    // this setting fresh from state on every `!` completion it handles.
-  };
+  }).join("") + '<p class="muted small">Defaults appear first in tag autocomplete. Add options under RSML tags.</p>';
+  for (const [key, id] of fields) {
+    const sel = root.querySelector(`#${id}`);
+    applySelect2(sel);
+    sel.onchange = () => {
+      getState()[key] = sel.value || null;
+      scheduleSave();
+    };
+  }
 }
 
 // -------------------------------------------------------------- speakers ----

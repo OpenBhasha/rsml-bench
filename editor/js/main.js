@@ -46,6 +46,9 @@ const newState = () => ({
   // permanent (can't be removed) and doubles as "the" default speaker - see
   // speakers.js's defaultSpeakerId().
   defaultCodeMixLanguage: null, // language code; boosted to the top of the `!` autocomplete popup
+  defaultDialect: null,
+  defaultAccent: null,
+  defaultDomain: null,
   accents: {}, // { id: name } - app-only vocabulary for $id[...](...) accent tags; rsml itself has
   // no accents category (no add()/remove() support, unlike dialects/domains) so this is
   // maintained here and fed into the `$` autocomplete by editor.js's patchCompletions().
@@ -299,9 +302,15 @@ function applyImportedConfig(config) {
     rsmlConfig: state.rsmlConfig,
     accents: state.accents,
     defaultCodeMixLanguage: state.defaultCodeMixLanguage,
+    defaultDialect: state.defaultDialect,
+    defaultAccent: state.defaultAccent,
+    defaultDomain: state.defaultDomain,
     speakers: state.speakers.slice(),
   };
   if (config.defaultCodeMixLanguage !== undefined) state.defaultCodeMixLanguage = config.defaultCodeMixLanguage;
+  for (const key of ["defaultDialect", "defaultAccent", "defaultDomain"]) {
+    if (config[key] !== undefined) state[key] = config[key];
+  }
   if (config.speakers) state.speakers = config.speakers.map((sp) => ({ id: sp.id, gender: sp.gender, language: sp.language }));
 
   const sets = config.tagSets || {};
@@ -489,6 +498,7 @@ function wireHeader() {
   const drawer = document.getElementById("settings-drawer");
   const backdrop = document.getElementById("settings-backdrop");
   const open = () => {
+    renderCodeMixDefault(document.getElementById("language-defaults-panel"), { getState, scheduleSave, escapeHtml });
     drawer.hidden = false;
     backdrop.hidden = false;
   };

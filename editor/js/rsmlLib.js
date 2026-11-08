@@ -36,7 +36,7 @@ const PINNED_VERSION = null;
 // The last version known to work with this app; used when latest can't be
 // determined or loaded and nothing better is remembered. Bump it when you have
 // tried the app against a newer release.
-const FALLBACK_VERSION = "3.3.4";
+const FALLBACK_VERSION = "3.4.0";
 
 const NPM_LATEST_URL = "https://registry.npmjs.org/rsml/latest";
 const LOOKUP_TIMEOUT_MS = 3000; // never let a slow registry hold the whole app hostage

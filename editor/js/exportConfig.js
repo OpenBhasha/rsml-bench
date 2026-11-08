@@ -72,6 +72,9 @@ export function buildExportConfig(state) {
   return {
     versions: { bhashacheck: BHASHACHECK_VERSION, rsml: RSML_VERSION },
     defaultCodeMixLanguage: state.defaultCodeMixLanguage || null,
+    defaultDialect: state.defaultDialect || null,
+    defaultAccent: state.defaultAccent || null,
+    defaultDomain: state.defaultDomain || null,
     speakers: (state.speakers || []).map((sp) => ({ id: sp.id, gender: sp.gender, language: sp.language || null })),
     tagSets: {
       ...resolveRsmlTagSets(state.rsmlConfig),
