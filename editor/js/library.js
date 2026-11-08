@@ -57,10 +57,12 @@ export async function fetchIndex({ withStats = false } = {}) {
   const saved = await (await get("stats.json")).json();
   return Promise.all(videos.map(async (video) => {
     const cached = saved.videos?.[video.id];
-    if (video.sourceKey && cached?.sourceKey === video.sourceKey) return { ...video, ...cached };
+    if (video.sourceKey && cached?.sourceKey === video.sourceKey && cached.duration_s === video.duration_s) {
+      return { ...video, ...cached };
+    }
     let progress = null;
     try { progress = transcriptStats(await fetchRsml(video.id), video.duration_s); } catch { /* unavailable */ }
-    const stats = { progress, sourceKey: video.sourceKey };
+    const stats = { progress, sourceKey: video.sourceKey, duration_s: video.duration_s };
     if (progress && video.sourceKey) {
       const r = await fetch(`library/stats/${encodeURIComponent(video.id)}`, {
         method: "POST", headers: { "X-Library": "1", "Content-Type": "application/json" },

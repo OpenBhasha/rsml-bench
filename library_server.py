@@ -151,7 +151,8 @@ class Handler(SimpleHTTPRequestHandler):
                 path = self.rsml_dir / f"{video['id']}.rsml"
                 key = source_key(path)
                 saved = cache.get(video["id"], {})
-                progress = saved.get("progress") if key and key == saved.get("sourceKey") else summarize(path)
+                valid = key and key == saved.get("sourceKey") and saved.get("duration_s") == video["duration_s"]
+                progress = saved.get("progress") if valid else summarize(path)
                 rows.append({**video, "progress": progress, "sourceKey": key})
             self._json(rows)
             return
