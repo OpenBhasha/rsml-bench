@@ -970,3 +970,15 @@ main > section { flex: 1; min-height: 0; }
   .seg-panes { grid-template-columns: 1fr; }
   .seg-pane + .seg-pane { border-left: none; border-top: 1px solid var(--line); }
 }
+
+/* Speaker identity stays visible alongside active, verified and flagged states. */
+.seg-row.has-speaker-color { border-left: 4px solid var(--speaker-color, var(--line)); }
+.seg-row.has-speaker-color .seg-bar { background: var(--speaker-soft, #fcfbff); }
+.seg-row.has-speaker-color.verified, .seg-row.has-speaker-color.flagged, .seg-row.has-speaker-color.is-active {
+  border-left-color: var(--speaker-color, var(--line));
+}
+.seg-row.has-speaker-color.verified .seg-bar, .seg-row.has-speaker-color.flagged .seg-bar, .seg-row.has-speaker-color.is-active .seg-bar {
+  background: var(--speaker-soft, #fcfbff);
+}
+.seg-row.has-speaker-color.verified .seg-bar { box-shadow: inset 0 2px 0 var(--ok); }
+.seg-row.has-speaker-color.flagged .seg-bar { box-shadow: inset 0 2px 0 var(--warn); }

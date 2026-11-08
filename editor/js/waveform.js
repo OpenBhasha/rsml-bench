@@ -5,6 +5,8 @@ import WaveSurfer from "https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/wavesu
 import RegionsPlugin from "https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/plugins/regions.esm.js";
 import TimelinePlugin from "https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/plugins/timeline.esm.js";
 
+import { speakerColor } from "./speakerColors.js";
+
 let ws = null;
 let regions = null;
 let objectUrl = null;
@@ -22,15 +24,18 @@ let viewStart = 0;
 let viewEnd = 0;
 
 const REGION_COLOR = "rgba(91,60,196,0.12)";
-const REGION_COLOR_VERIFIED = "rgba(31,157,100,0.2)";
-const REGION_COLOR_FLAGGED = "rgba(178,106,0,0.2)";
-
-// A segment that's both flagged and verified reads as flagged - same
-// precedence .seg-row.flagged takes over .seg-row.verified in the editor list.
+// Speaker hue stays visible regardless of review status.
 function regionColorFor(seg) {
-  if (seg.flagged) return REGION_COLOR_FLAGGED;
-  if (seg.verified) return REGION_COLOR_VERIFIED;
+  if (Number.isSafeInteger(seg.speaker) && seg.speaker > 1) return speakerColor(seg.speaker, 0.2);
+  if (seg.flagged) return "rgba(178,106,0,0.2)";
+  if (seg.verified) return "rgba(31,157,100,0.2)";
   return REGION_COLOR;
+}
+
+function applyRegionStatus(region, seg) {
+  if (!region.element) return;
+  const status = seg.flagged ? "#b26a00" : seg.verified ? "#1f9d64" : "transparent";
+  region.element.style.boxShadow = `inset 0 3px 0 ${status}`;
 }
 
 export function isReady() {
@@ -292,7 +297,10 @@ export function setRegions(segments) {
         resize: true,
         content: label.text,
       });
-      if (region && region.element) region.element.title = label.title;
+      if (region && region.element) {
+        region.element.title = label.title;
+        applyRegionStatus(region, seg);
+      }
     });
   } finally {
     suppress = false;
@@ -331,8 +339,8 @@ export function updateRegion(id, start, end) {
   }
 }
 
-// Re-color regions in place (flagged -> amber, verified -> green, else the
-// plain color) without rebuilding them, so a checkbox/flag toggle never
+// Refresh speaker colors and status indicators without rebuilding regions,
+// so a checkbox/flag toggle never
 // disturbs an in-progress drag.
 export function syncRegionColors(segments) {
   if (!regions) return;
@@ -343,6 +351,7 @@ export function syncRegionColors(segments) {
       const seg = byId.get(r.id);
       if (!seg) return;
       r.setOptions({ color: regionColorFor(seg) });
+      applyRegionStatus(r, seg);
     });
   } finally {
     suppress = false;

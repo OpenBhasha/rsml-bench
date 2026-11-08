@@ -18,6 +18,7 @@ import {
   toast,
   escapeHtml,
 } from "./main.js";
+import { speakerColor, applySpeakerColor } from "./speakerColors.js";
 import * as wav from "./wav.js";
 import * as wf from "./waveform.js";
 import { buildRSML, buildSRT, downloadRSML, downloadSRT } from "./srt.js";
@@ -202,11 +203,7 @@ function updateScrubHead(t) {
   head.style.left = `${Math.min(100, Math.max(0, f * 100))}%`;
 }
 
-// Draw a band on the scrub strip for every verified (green) or flagged
-// (amber) segment that falls within the visible time window, so that work
-// stays visible while scrubbing even when the waveform itself is scrolled
-// past it. A segment that's both gets the flagged color - same precedence
-// as .seg-row.flagged winning over .seg-row.verified in the row itself.
+// Speaker-colored overview bands, with status shown along their top edge.
 function updateScrubMarks() {
   const scrub = document.getElementById("wf-scrub");
   if (!scrub || !wf.isReady()) return;
@@ -223,13 +220,13 @@ function updateScrubMarks() {
     return;
   }
   const html = getState()
-    .segments.filter((s) => s.verified || s.flagged)
+    .segments
     .map((s) => {
       const l = Math.max(0, Math.min(1, (s.start - start) / span));
       const r = Math.max(0, Math.min(1, (s.end - start) / span));
       if (r <= l) return "";
       const cls = s.flagged ? "wf-scrub-mark wf-scrub-mark-flagged" : "wf-scrub-mark";
-      return `<div class="${cls}" style="left:${(l * 100).toFixed(3)}%;width:${((r - l) * 100).toFixed(3)}%"></div>`;
+      return `<div class="${cls}" style="left:${(l * 100).toFixed(3)}%;width:${((r - l) * 100).toFixed(3)}%;background:${speakerColor(s.speaker, 0.35)};${s.flagged ? "border-top:2px solid var(--warn)" : s.verified ? "border-top:2px solid var(--ok)" : ""}"></div>`;
     })
     .join("");
   marks.innerHTML = html;
@@ -332,6 +329,7 @@ function buildRow(seg) {
   const row = document.createElement("div");
   row.className = "seg-row" + (seg.verified ? " verified" : "") + (seg.flagged ? " flagged" : "");
   row.dataset.id = seg.id;
+  applySpeakerColor(row, seg.speaker);
   row.innerHTML = `
     <div class="seg-bar">
       <input type="checkbox" class="seg-check" ${seg.verified ? "checked" : ""} title="Mark this segment verified" />
@@ -437,6 +435,7 @@ function buildRow(seg) {
       openSpeakerModal(speakerDeps(), {
         onSaved: (sp) => {
           seg.speaker = sp.id;
+          refreshSpeakerDropdowns();
           scheduleSave();
           els.speaker.innerHTML = speakerOptionsHtml(seg.speaker);
           if (wf.isReady()) wf.refreshRegionLabels(getState().segments);
@@ -445,6 +444,7 @@ function buildRow(seg) {
       return;
     }
     seg.speaker = parseInt(els.speaker.value, 10);
+    refreshSpeakerDropdowns();
     scheduleSave();
     if (wf.isReady()) wf.refreshRegionLabels(getState().segments);
   };
@@ -590,8 +590,13 @@ export function applyRsmlChange(category, action, value, label) {
 export function refreshSpeakerDropdowns() {
   for (const rec of rows.values()) {
     rec.els.speaker.innerHTML = speakerOptionsHtml(rec.seg.speaker);
+    applySpeakerColor(rec.el, rec.seg.speaker);
   }
-  if (wf.isReady()) wf.refreshRegionLabels(getState().segments);
+  if (wf.isReady()) {
+    wf.refreshRegionLabels(getState().segments);
+    wf.syncRegionColors(getState().segments);
+    updateScrubMarks();
+  }
 }
 
 // Mirrors rsml's own trigger regex exactly (see its _cmComplete source) so
@@ -863,6 +868,7 @@ function reindex() {
     const r = rows.get(seg.id);
     if (r) {
       r.els.idx.textContent = i + 1;
+      applySpeakerColor(r.el, seg.speaker);
       // Nothing to merge into once this is the last segment - recomputed
       // here (rather than once at row-build time) since which segment is
       // last can change any time the list does.
