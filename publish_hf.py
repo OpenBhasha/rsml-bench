@@ -65,7 +65,7 @@ language:
 - {code}
 pretty_name: RSML Bench - {lang.capitalize()}
 license: other
-license_name: 'CC BY (YouTube "reuse allowed")'
+license_name: cc-by-youtube-reuse-allowed
 license_link: https://creativecommons.org/licenses/by/
 task_categories:
 - automatic-speech-recognition
