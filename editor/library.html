@@ -39,6 +39,13 @@
       .library-stat.slate { --tone: #48566b; --tint: #eff3f8; }
       .library-stat dt { font-size: 12px; line-height: 1.4; }
       .library-stat dd { margin: 0; font-size: 21px; line-height: 1.25; font-weight: 700; font-variant-numeric: tabular-nums; }
+      .library-progress { margin-bottom: 14px; }
+      .library-progress-track { display: flex; height: 12px; overflow: hidden; border-radius: 999px; background: var(--line); }
+      .library-progress-done { background: #1f9d64; }
+      .library-progress-started { background: #1f8790; }
+      .library-progress-labels { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
+      .library-progress-labels span:first-child { color: #166348; }
+      .library-progress-labels span:last-child { color: #146468; }
       .library-table { width: 100%; --bs-table-striped-bg: #f8f9fc; --bs-table-hover-bg: #f0ecff; --bs-table-border-color: #eceaf2; }
       .library-table th { font-size: 12px; color: #514b65; font-weight: 700; background: #f1eff8; white-space: nowrap; }
       .library-table :is(th, td) { padding: 10px 12px; }
@@ -90,6 +97,16 @@
         </div>
         <section id="library-work" class="library-panel" aria-labelledby="library-work-heading" hidden>
           <h1 id="library-work-heading" class="library-heading">Task progress</h1>
+          <div class="library-progress">
+            <div class="library-progress-track" aria-hidden="true">
+              <span id="library-progress-done" class="library-progress-done"></span>
+              <span id="library-progress-started" class="library-progress-started"></span>
+            </div>
+            <div class="library-progress-labels">
+              <span id="library-progress-done-label"></span>
+              <span id="library-progress-started-label"></span>
+            </div>
+          </div>
           <dl id="library-task-stats" class="library-stats"></dl>
         </section>
         <section id="library-overview" class="library-panel" aria-labelledby="library-stats-heading" hidden>

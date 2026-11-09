@@ -90,14 +90,22 @@ function card(label, value, tone, icon, definition) {
 
 function renderTaskProgress(rows) {
   const countStatus = (status) => rows.filter((row) => row.status.key === status).length;
+  const completed = countStatus("done");
   const notStarted = countStatus("new");
   const inProgress = countStatus("progress");
   const unavailable = countStatus("unknown");
   const flagged = rows.reduce((sum, row) => sum + (row.s?.flagged || 0), 0);
+  for (const [key, count, label] of [
+    ["done", completed, "complete"],
+    ["started", inProgress, "in progress"],
+  ]) {
+    $("library-progress-" + key).style.width = (rows.length ? 100 * count / rows.length : 0) + "%";
+    $("library-progress-" + key + "-label").textContent = percent(count, rows.length) + " " + label;
+  }
   const cards = [
     card("Total tasks", format(rows.length), "blue", "collection", "All audio files in the library."),
     card("Pending tasks", format(notStarted + inProgress), "amber", "hourglass-split", "Tasks in progress or awaiting verification."),
-    card("Verified tasks", format(countStatus("done")), "green", "check-circle", "Tasks with every segment verified."),
+    card("Verified tasks", format(completed), "green", "check-circle", "Tasks with every segment verified."),
     card("In progress", format(inProgress), "teal", "play-circle", "Tasks with some segments verified."),
     card("Not started", format(notStarted), "slate", "circle", "Tasks with zero verified segments."),
     card("Flags", format(flagged), "rose", "flag", "Total flagged segments."),
