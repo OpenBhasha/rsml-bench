@@ -113,7 +113,7 @@ function renderDurationProgress(rows, verified, total) {
     sum + (status.key === "done" ? s.verifiedSeconds : 0), 0);
   const partial = rows.reduce((sum, { s, status }) =>
     sum + (status.key === "progress" ? s.verifiedSeconds : 0), 0);
-  const label = `${percent(verified, total)} verified · ${clock(verified)} / ${clock(total)}`;
+  const label = `${percent(verified, total)} verified`;
   $("library-progress-total").textContent = label;
   const track = $("library-progress-track");
   track.setAttribute("aria-valuetext", label);
