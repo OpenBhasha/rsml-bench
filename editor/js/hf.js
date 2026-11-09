@@ -156,6 +156,7 @@ export function saveRsml(id, text, { urgent = false } = {}) {
 }
 
 async function drain() {
+  let saved;
   try {
     while (pending) {
       const wait = lastCommitAt + MIN_GAP_MS - Date.now();
@@ -163,8 +164,9 @@ async function drain() {
       if (!pending) break;
       const job = pending;
       pending = null;
-      if (known.get(job.id) !== job.text) await commitWithRetry(job);
+      if (known.get(job.id) !== job.text) saved = await commitWithRetry(job);
     }
+    return saved;
   } finally {
     running = null;
   }
@@ -180,9 +182,9 @@ function nap(ms) {
 async function commitWithRetry(job) {
   for (let attempt = 1; ; attempt++) {
     try {
-      await commit(job);
+      const video = await commit(job);
       lastCommitAt = Date.now();
-      return;
+      return video;
     } catch (err) {
       if (err.retryable && attempt < 4) {
         await nap(250 * attempt);
@@ -218,7 +220,7 @@ async function commit(job, { keepalive = false } = {}) {
   const remoteText = await current.text();
   if (remoteText === job.text) {
     known.set(job.id, job.text);
-    return;
+    return index.videos[position];
   }
   if (remoteText !== known.get(job.id)) {
     throw httpError("Transcript changed on Hugging Face. Reload and reconcile the local recovery copy before syncing.", 409);
@@ -245,6 +247,7 @@ async function commit(job, { keepalive = false } = {}) {
     throw httpError(`Hugging Face did not save ${job.id} (HTTP ${r.status}${detail ? `: ${detail}` : ""})`, r.status);
   }
   known.set(job.id, job.text);
+  return index.videos[position];
 }
 
 function toBase64(bytes) {

@@ -1,5 +1,17 @@
 import { parseSRT } from "./srt.js";
 
+export function clock(seconds) {
+  const s = Math.round(seconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor(s / 60) % 60;
+  const sec = String(s % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
+}
+
+export function productivity(progress, seconds) {
+  return seconds > 0 && progress ? 3600 * progress.verifiedSeconds / seconds : null;
+}
+
 function matchingClose(text, start, open, close) {
   let depth = 0;
   for (let i = start; i < text.length; i++) {

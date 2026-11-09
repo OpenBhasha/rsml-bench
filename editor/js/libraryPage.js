@@ -1,6 +1,7 @@
 // library.html: every video in the library, with progress read from its RSML file.
 
 import { fetchIndex, isLocal, getToken, setToken, whoami, lastActiveId } from "./library.js";
+import { clock, productivity } from "./libraryStats.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -13,14 +14,6 @@ function el(tag, attrs = {}, ...kids) {
   }
   for (const kid of kids) if (kid) e.append(kid);
   return e;
-}
-
-function clock(seconds) {
-  const s = Math.round(seconds);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor(s / 60) % 60;
-  const sec = String(s % 60).padStart(2, "0");
-  return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
 }
 
 const asrDraftIds = new Set(window.RSML_BENCH.asrDraftIds);
@@ -54,7 +47,7 @@ function renderRow({ v, i, s, asr, status, seconds }) {
   const comparison = v.comparison;
   const segmentComparison = v.segmentComparison;
   const segmentWer = segmentComparison?.segmentWer;
-  const productivity = seconds > 0 && s ? 3600 * s.verifiedSeconds / seconds : null;
+  const rate = productivity(s, seconds);
   const title = el("td", { class: "lib-title", "data-search": v.title + " " + v.id },
     el("a", { href: editorLink(v.id), text: v.title }));
   if (/^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(v.url || "")) {
@@ -81,7 +74,7 @@ function renderRow({ v, i, s, asr, status, seconds }) {
       text: segmentWer == null ? "—" : percent(segmentWer, 1) }),
     numericCell(s?.verifiedSeconds, s ? clock(s.verifiedSeconds) : null),
     numericCell(s?.verifiedRawSeconds, s ? clock(s.verifiedRawSeconds) : null),
-    numericCell(productivity, productivity == null ? null : clock(productivity) + " / hr"));
+    numericCell(rate, rate == null ? null : clock(rate) + " / hr"));
 }
 
 function card(label, value, tone, icon, definition) {

@@ -45,6 +45,15 @@
           <a id="library-next" class="btn btn-sm btn-outline-secondary" title="Next video" aria-label="Next video"><i class="bi bi-chevron-right"></i></a>
           <a id="library-youtube" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener noreferrer" title="Open this video on YouTube" hidden><i class="bi bi-youtube"></i> YouTube</a>
         </span>
+        <div id="file-stats" class="file-stats" hidden>
+          <span class="icon-btn file-stats-icon" tabindex="0" aria-label="File stats" aria-describedby="file-stats-popover">
+            <i class="bi bi-info-circle" aria-hidden="true"></i>
+          </span>
+          <div id="file-stats-popover" class="file-stats-popover" role="tooltip">
+            <strong>File stats</strong>
+            <dl id="file-stats-values"></dl>
+          </div>
+        </div>
         <button id="sync-now" class="btn btn-sm btn-primary" hidden><i class="bi bi-cloud-arrow-up"></i> Sync now</button>
         <span id="save-indicator" class="save-indicator"></span>
         <button id="open-settings" class="icon-btn" title="Settings" aria-label="Settings">

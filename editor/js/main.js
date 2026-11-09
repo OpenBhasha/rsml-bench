@@ -13,13 +13,23 @@ import { renderCodeMixDefault, renderSpeakerSettings, defaultSpeakerId } from ".
 import { renderInsights } from "./insights.js";
 import { BHASHACHECK_VERSION } from "./version.js";
 import { RSML_VERSION } from "./rsmlLib.js";
-import { libraryId, fetchAudio, fetchRsml, fetchIndex, saveRsml, hasUnsaved, rememberActive } from "./library.js";
+import { libraryId, isLocal, fetchAudio, fetchRsml, fetchIndex, saveRsml, hasUnsaved, rememberActive } from "./library.js";
+import { transcriptStats } from "./libraryStats.js";
+import { renderFileStats } from "./fileStats.js";
 
 // Library mode (library.js): index.html?id=<video id> opens that video, with its audio and RSML
 // fetched from the local server and every edit autosaved back into the RSML file. Nothing is kept
 // in the browser while also syncing to the Hub. Without ?id= nothing below changes.
 const LIB = libraryId();
 const DECODE_OPTS = LIB ? { sampleRate: 16000 } : undefined; // the library's audio is 16 kHz
+let libraryVideo = { id: LIB };
+let syncedVideo = null;
+let localStatsText = null;
+
+function showLibraryStats(video) {
+  libraryVideo = { ...libraryVideo, ...video, ...syncedVideo };
+  renderFileStats(libraryVideo);
+}
 
 // ---------------------------------------------------------------- state ----
 
@@ -146,8 +156,19 @@ export async function saveNow({ urgent = false } = {}) {
 function syncToDisk(urgent = false) {
   let ok = true;
   let reason = "";
-  return saveRsml(LIB, buildRSML(state.segments, buildExportConfig(state)), { urgent }).then(
-    () => {},
+  const text = buildRSML(state.segments, buildExportConfig(state));
+  return saveRsml(LIB, text, { urgent }).then(
+    (video) => {
+      if (isLocal && text !== localStatsText) {
+        const duration_s = libraryVideo.duration_s || state.audioMeta?.duration;
+        localStatsText = text;
+        syncedVideo = { progress: transcriptStats(text, duration_s) };
+        showLibraryStats({ duration_s });
+      } else if (video) {
+        syncedVideo = video;
+        showLibraryStats(video);
+      }
+    },
     (err) => {
       ok = false;
       reason = err.status === 401 ? "LOCAL COPY SAVED - add a token on the library page" : err.status === 403 ? "LOCAL COPY SAVED - token needs write access to OpenBhasha/rsml-bench" : "LOCAL COPY SAVED - Hugging Face sync failed";
@@ -666,6 +687,13 @@ async function openFromLibrary(id) {
     state.audioMeta = { name: `${id}.wav`, type: audio.type, size: audio.size, duration: 0 };
     await setWorkingAudio(audio);
     await importSrt(new File([rsml], `${id}.rsml`, { type: "text/plain" }));
+    if (isLocal && !syncedVideo) {
+      localStatsText = remoteRsml;
+      if (!libraryVideo.progress) {
+        const duration_s = libraryVideo.duration_s || state.audioMeta.duration;
+        showLibraryStats({ duration_s, progress: transcriptStats(remoteRsml, duration_s) });
+      }
+    }
     rememberActive(id);
     if (localRsml?.text && localRsml.text !== remoteRsml) {
       toast("Restored the local IndexedDB copy. Use Sync now to update Hugging Face.", "info");
@@ -712,9 +740,14 @@ async function wireLibraryNav(id) {
   const video = (v) => v && `index.html?id=${encodeURIComponent(v.id)}`;
   link("library-link", "library.html");
   try {
-    const index = await fetchIndex();
+    const index = await fetchIndex({ withStats: !isLocal }).catch((err) => {
+      if (isLocal) throw err;
+      return fetchIndex();
+    });
     const i = index.findIndex((v) => v.id === id);
     if (i === -1) return;
+    const { progress, ...metadata } = index[i];
+    showLibraryStats(isLocal && !progress ? metadata : index[i]);
     link("library-prev", video(index[i - 1]));
     link("library-next", video(index[i + 1]));
     // the source video, in a new tab (only a youtube.com / youtu.be address is ever linked)
