@@ -95,13 +95,6 @@ function renderTaskProgress(rows) {
   const inProgress = countStatus("progress");
   const unavailable = countStatus("unknown");
   const flagged = rows.reduce((sum, row) => sum + (row.s?.flagged || 0), 0);
-  for (const [key, count, label] of [
-    ["done", completed, "complete"],
-    ["started", inProgress, "in progress"],
-  ]) {
-    $("library-progress-" + key).style.width = (rows.length ? 100 * count / rows.length : 0) + "%";
-    $("library-progress-" + key + "-label").textContent = percent(count, rows.length) + " " + label;
-  }
   const cards = [
     card("Total tasks", format(rows.length), "blue", "collection", "All audio files in the library."),
     card("Pending tasks", format(notStarted + inProgress), "amber", "hourglass-split", "Tasks in progress or awaiting verification."),
@@ -115,12 +108,33 @@ function renderTaskProgress(rows) {
   $("library-work").hidden = false;
 }
 
+function renderDurationProgress(rows, verified, total) {
+  const completed = rows.reduce((sum, { s, status }) =>
+    sum + (status.key === "done" ? s.verifiedSeconds : 0), 0);
+  const partial = rows.reduce((sum, { s, status }) =>
+    sum + (status.key === "progress" ? s.verifiedSeconds : 0), 0);
+  const label = `${percent(verified, total)} verified · ${clock(verified)} / ${clock(total)}`;
+  $("library-progress-total").textContent = label;
+  const track = $("library-progress-track");
+  track.setAttribute("aria-valuetext", label);
+  if (total > 0) track.setAttribute("aria-valuenow", 100 * verified / total);
+  else track.removeAttribute("aria-valuenow");
+  for (const [key, seconds, source] of [
+    ["done", completed, "from completed files"],
+    ["started", partial, "from in-progress files"],
+  ]) {
+    $("library-progress-" + key).style.width = (total > 0 ? 100 * seconds / total : 0) + "%";
+    $("library-progress-" + key + "-label").textContent = percent(seconds, total) + " " + source;
+  }
+}
+
 function renderOverview(rows) {
   const raw = rows.reduce((sum, row) => sum + row.v.duration_s, 0);
   const sumProgress = (key) => rows.reduce((sum, row) => sum + (row.s?.[key] ?? 0), 0);
   const verifiedRaw = sumProgress("verifiedRawSeconds");
   const verified = sumProgress("verifiedSeconds");
   const segmented = sumProgress("segmentSeconds");
+  renderDurationProgress(rows, verified, segmented);
   const compared = rows.flatMap(({ v }) => v.segmentComparison?.comparedSegments ? [v.segmentComparison] : []);
   const comparedSegments = compared.reduce((sum, result) => sum + result.comparedSegments, 0);
   const segmentWerSum = compared.reduce((sum, result) => sum + result.segmentWer * result.comparedSegments, 0);
